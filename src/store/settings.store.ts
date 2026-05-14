@@ -75,6 +75,12 @@ export const useSettingsStore = defineStore('Settings', {
     },
     gridNameSortDirection(): 'horizontal' | 'vertical' {
       return this.settings?.frontend?.gridNameSortDirection || 'horizontal'
+    },
+    slicerAutoSelectFile(): boolean {
+      return this.settings?.frontend?.slicerAutoSelectFile ?? false
+    },
+    clickToOpenDrawer(): boolean {
+      return this.settings?.frontend?.clickToOpenDrawer ?? false
     }
   }
 })

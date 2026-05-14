@@ -12,6 +12,8 @@ import { reactive } from "vue";
 import { useEventBus } from "@vueuse/core";
 import { useDebugSocketStore } from "@/store/debug-socket.store";
 import { useOverlayStore } from "@/store/overlay.store";
+import { useDispatchFileStore } from "@/store/dispatch-file.store";
+import { useSettingsStore } from "@/store/settings.store";
 
 enum IO_MESSAGES {
   Update = "update",
@@ -236,6 +238,15 @@ export class SocketIoService {
     // Register test printer state handler
     appSocketIO.on(IO_MESSAGES.TestPrinterState, (data) => {
       this.testPrinterStore.saveEvent(data);
+    });
+
+    // Auto-select slicer file when received (if setting enabled)
+    appSocketIO.on("slicerFile.received", (data: { fileName: string; fileStorageId: string }) => {
+      const settingsStore = useSettingsStore();
+      if (settingsStore.slicerAutoSelectFile) {
+        const dispatchFileStore = useDispatchFileStore();
+        dispatchFileStore.setSlicerFile(data);
+      }
     });
   }
 }

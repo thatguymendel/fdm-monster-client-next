@@ -6,6 +6,8 @@ export interface FrontendSettings {
   gridRows: number
   tilePreferCancelOverQuickStop: boolean
   gridNameSortDirection?: 'horizontal' | 'vertical'
+  slicerAutoSelectFile?: boolean
+  clickToOpenDrawer?: boolean
 }
 
 export interface ConnectionInfo {

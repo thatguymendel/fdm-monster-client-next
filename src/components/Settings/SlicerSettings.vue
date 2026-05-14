@@ -118,6 +118,23 @@
           </div>
         </div>
       </SettingSection>
+
+      <SettingSection
+        title="Slicer Behavior"
+        tooltip="Control how FDM Monster reacts when a slicer uploads a file."
+        :usecols="false"
+        class="mt-4"
+      >
+        <v-switch
+          v-model="slicerAutoSelectFile"
+          label="Auto-select slicer file for dispatch"
+          hint="When a slicer uploads a file, automatically load it into the toolbar so you can immediately dispatch it to printers."
+          persistent-hint
+          color="primary"
+          density="compact"
+          @update:model-value="updateSlicerAutoSelect"
+        />
+      </SettingSection>
     </v-card-text>
 
     <!-- Regenerate Confirmation Dialog -->
@@ -156,6 +173,18 @@
 import { computed, onMounted, ref } from 'vue'
 import { SettingsService } from '@/backend'
 import SettingSection from '@/components/Settings/Shared/SettingSection.vue'
+import { useSettingsStore } from '@/store/settings.store'
+
+const settingsStore = useSettingsStore()
+const slicerAutoSelectFile = ref(false)
+
+async function updateSlicerAutoSelect(value: boolean) {
+  if (!settingsStore.frontendSettings) return
+  await settingsStore.updateFrontendSettings({
+    ...settingsStore.frontendSettings,
+    slicerAutoSelectFile: value,
+  })
+}
 
 const slicerApiKey = ref<string | null>(null)
 const isLoading = ref(true)
@@ -259,6 +288,8 @@ function showSuccessMessage(message: string) {
 
 onMounted(async () => {
   await loadApiKey()
+  await settingsStore.loadSettings()
+  slicerAutoSelectFile.value = settingsStore.slicerAutoSelectFile
 })
 </script>
 

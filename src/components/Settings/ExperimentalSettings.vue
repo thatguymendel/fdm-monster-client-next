@@ -71,6 +71,23 @@
           </v-icon>
         </div>
       </SettingSection>
+
+      <SettingSection
+        title="Printer Grid Behavior"
+        tooltip="Customize how clicking on printer tiles behaves."
+        :usecols="false"
+        class="mt-4"
+      >
+        <v-switch
+          v-model="clickToOpenDrawer"
+          label="Click tile to open file drawer"
+          hint="When enabled, clicking a printer tile opens its file drawer instead of toggling multi-select. Multi-select is only active when a dispatch file is loaded."
+          persistent-hint
+          color="primary"
+          density="compact"
+          @update:model-value="updateClickToOpenDrawer"
+        />
+      </SettingSection>
     </v-card-text>
   </v-card>
 </template>
@@ -79,6 +96,18 @@
 import { onMounted, ref } from 'vue'
 import { SettingsService } from '@/backend'
 import SettingSection from '@/components/Settings/Shared/SettingSection.vue'
+import { useSettingsStore } from '@/store/settings.store'
+
+const settingsStore = useSettingsStore()
+const clickToOpenDrawer = ref(false)
+
+async function updateClickToOpenDrawer(value: boolean) {
+  if (!settingsStore.frontendSettings) return
+  await settingsStore.updateFrontendSettings({
+    ...settingsStore.frontendSettings,
+    clickToOpenDrawer: value,
+  })
+}
 
 const experimentalMoonrakerSupport = ref(false)
 const experimentalPrusaLinkSupport = ref(false)
@@ -99,6 +128,8 @@ async function loadSettings() {
 
 onMounted(async () => {
   await loadSettings()
+  await settingsStore.loadSettings()
+  clickToOpenDrawer.value = settingsStore.clickToOpenDrawer
 })
 
 const updateMoonrakerSupport = async () => {

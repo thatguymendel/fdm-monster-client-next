@@ -376,6 +376,7 @@ import { dragAppId, INTENT, PrinterPlace, DRAG_EVENTS } from '@/shared/drag.cons
 import { hasEmergencyStop, hasPrinterControl, hasSerialConnection } from '@/shared/printer-capabilities.constants'
 import logoPng from '@/assets/logo.png'
 import { useFilamentStore } from '@/store/filament.store'
+import { useDispatchFileStore } from '@/store/dispatch-file.store'
 
 const defaultColor = 'rgba(100,100,100,0.1)'
 
@@ -399,6 +400,7 @@ const snackbar = useSnackbar()
 const router = useRouter()
 
 const filamentStore = useFilamentStore()
+const dispatchFileStore = useDispatchFileStore()
 const printerId = computed(() => props.printer?.id)
 const tileSpool = computed(() => printerId.value ? filamentStore.getSpoolForPrinter(printerId.value) : null)
 
@@ -597,6 +599,12 @@ const clickConnectUsb = async () => {
 
 const selectPrinterPosition = async () => {
   if (!props.printer || !printerId.value) {
+    return
+  }
+
+  // When clickToOpenDrawer is enabled: open the sidebar directly unless a file is loaded for dispatch
+  if (settingsStore.clickToOpenDrawer && !dispatchFileStore.hasFile) {
+    fileExplorer.openFileExplorer(props.printer)
     return
   }
 

@@ -53,6 +53,11 @@ export class PrinterRemoteFileService extends BaseService {
     });
   }
 
+  static async uploadFromStorage(printerId: number, fileStorageId: string, startPrint: boolean = false) {
+    const path = ServerApi.printerFilesUploadFromStorageRoute(printerId);
+    return this.post(path, { fileStorageId, startPrint });
+  }
+
   static async deleteFileOrFolder(printerId: number, path: string) {
     const urlPath = `${
       ServerApi.printerRemoteFilesRoute

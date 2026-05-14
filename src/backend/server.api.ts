@@ -79,6 +79,8 @@ export class ServerApi {
     `${ServerApi.printerRemoteFilesRoute}/${id}/print`;
   static readonly printerFilesUploadRoute = (id: number) =>
     `${ServerApi.printerRemoteFilesRoute}/${id}/upload`
+  static readonly printerFilesUploadFromStorageRoute = (id: number) =>
+    `${ServerApi.printerRemoteFilesRoute}/${id}/upload-from-storage`
   static readonly printerEnabledRoute = (id: number) => `${ServerApi.getPrinterRoute(id)}/enabled`
   static readonly printerSerialConnectRoute = (id: number) =>
     `${ServerApi.getPrinterRoute(id)}/serial-connect`
