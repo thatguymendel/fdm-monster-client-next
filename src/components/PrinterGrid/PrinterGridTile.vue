@@ -297,13 +297,14 @@
         </v-tooltip>
       </div>
 
-      <!-- Progress Bar -->
+      <!-- Progress Bar — pinned to card bottom edge -->
       <v-progress-linear
         v-if="printer"
         :model-value="currentProgress"
         background-color="dark-gray"
         class="progress-bar"
         height="14"
+        style="position:absolute; bottom:0; left:0; right:0; border-radius:0 0 8px 8px !important"
       >
         <template v-slot:default="{ value }">
           <strong>
@@ -615,7 +616,7 @@ const selectPrinterPosition = async () => {
 }
 
 .colored-tile {
-  padding: 8px;
+  padding: 8px 8px 22px;
   color: #ffffff;
   position: relative;
   display: flex;
@@ -787,8 +788,6 @@ const selectPrinterPosition = async () => {
 }
 
 .progress-bar {
-  width: 100%;
   background-color: #2c2c2c;
-  border-radius: 7px !important;
 }
 </style>
