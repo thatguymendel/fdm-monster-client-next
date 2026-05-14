@@ -606,12 +606,11 @@ const selectPrinterPosition = async () => {
 
 <style>
 .tile {
-  min-height: 100px;
-  max-height: 108px;
+  min-height: 104px;
 }
 
 .tile-large {
-  min-height: 120px;
+  min-height: 136px;
 }
 
 .colored-tile {
@@ -637,7 +636,7 @@ const selectPrinterPosition = async () => {
 }
 
 .tile.tile-large {
-  min-height: 120px;
+  min-height: 136px;
 }
 
 .tile-draggable {
@@ -788,6 +787,7 @@ const selectPrinterPosition = async () => {
 
 .progress-bar {
   width: 100%;
+  flex-shrink: 0;
   background-color: #2c2c2c;
   border-radius: 7px !important;
 }
