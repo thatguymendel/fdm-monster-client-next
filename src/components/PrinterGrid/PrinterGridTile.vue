@@ -23,6 +23,18 @@
         {{ printer?.name ?? '&nbsp;' }}
       </div>
 
+      <!-- Filament indicator -->
+      <div v-if="printer" class="filament-indicator">
+        <div
+          class="filament-dot"
+          :class="{ 'filament-dot--empty': !tileSpool }"
+          :style="tileSpool?.colorHex ? { backgroundColor: tileSpool.colorHex } : {}"
+        />
+        <span v-if="tileSpool" class="filament-label">
+          {{ tileSpool.material?.toUpperCase() }} · {{ tileSpool.remainingWeightGrams ?? '?' }}g
+        </span>
+      </div>
+
       <!-- Temperatures - positioned as overlay in top left -->
       <div
         v-if="printer && (toolTemp || bedTemp)"
@@ -363,6 +375,7 @@ import { useFileExplorer } from '@/shared/file-explorer.composable'
 import { dragAppId, INTENT, PrinterPlace, DRAG_EVENTS } from '@/shared/drag.constants'
 import { hasEmergencyStop, hasPrinterControl, hasSerialConnection } from '@/shared/printer-capabilities.constants'
 import logoPng from '@/assets/logo.png'
+import { useFilamentStore } from '@/store/filament.store'
 
 const defaultColor = 'rgba(100,100,100,0.1)'
 
@@ -385,7 +398,9 @@ const fileExplorer = useFileExplorer()
 const snackbar = useSnackbar()
 const router = useRouter()
 
+const filamentStore = useFilamentStore()
 const printerId = computed(() => props.printer?.id)
+const tileSpool = computed(() => printerId.value ? filamentStore.getSpoolForPrinter(printerId.value) : null)
 
 const isFirstTile = computed(() => props.x === 0 && props.y === 0)
 const noPrintersExist = computed(() => printerStore.printers.length === 0)
@@ -659,6 +674,34 @@ const selectPrinterPosition = async () => {
   font-weight: bold;
   text-align: center;
   color: #ffffff;
+}
+
+.filament-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.filament-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.4);
+  flex-shrink: 0;
+  background-color: #888;
+}
+
+.filament-dot--empty {
+  background-color: transparent;
+  border-color: rgba(255,255,255,0.2);
+}
+
+.filament-label {
+  font-size: 10px;
+  color: rgba(255,255,255,0.75);
+  white-space: nowrap;
 }
 
 .printer-file-or-stream-viewer {

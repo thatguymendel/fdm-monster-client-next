@@ -23,9 +23,9 @@ import PrintJobsView from '../components/PrintJobs/PrintJobsView.vue'
 import MaintenanceLogsView from '../components/MaintenanceLogs/MaintenanceLogsView.vue'
 import FilesView from '../components/Files/FilesView.vue'
 import ExperimentalSettings from '@/components/Settings/ExperimentalSettings.vue'
-import FilamentView from '@/components/Filament/FilamentView.vue'
 import ProductionView from '@/components/Production/ProductionView.vue'
 import SlicerSettings from '@/components/Settings/SlicerSettings.vue'
+import FilamentPresetsSettings from '@/components/Settings/FilamentPresetsSettings.vue'
 import ApiKeysSettings from '@/components/Settings/ApiKeysSettings.vue'
 import DebugSocketSettings from "@/components/Settings/DebugSocketSettings.vue";
 import AboutSettings from "@/components/Settings/AboutSettings.vue";
@@ -150,6 +150,11 @@ const router = createRouter({
           component: SlicerSettings
         },
         {
+          path: 'filament-presets',
+          meta: NeedsAuth,
+          component: FilamentPresetsSettings
+        },
+        {
           path: 'api-keys',
           meta: NeedsAuth,
           component: ApiKeysSettings
@@ -183,12 +188,6 @@ const router = createRouter({
       name: RouteNames.Files,
       meta: NeedsAuth,
       component: FilesView
-    },
-    {
-      path: '/filament',
-      name: RouteNames.Filament,
-      meta: NeedsAuth,
-      component: FilamentView
     },
     {
       path: '/production',

@@ -219,7 +219,19 @@
           <v-icon start size="small" class="mr-2">mdi:mdi-water</v-icon>
           <span>Filament</span>
           <v-spacer />
-          <v-btn size="small" variant="text" @click="openChangeSpoolDialog">Change</v-btn>
+          <v-btn
+            v-if="currentSpool"
+            size="small"
+            variant="text"
+            color="error"
+            :loading="filamentSaving"
+            @click="doUnloadSpool"
+          >
+            Unload
+          </v-btn>
+          <v-btn size="small" variant="tonal" color="primary" @click="openLoadSpoolDialog">
+            {{ currentSpool ? 'Change' : 'Load Spool' }}
+          </v-btn>
         </div>
       </v-card-title>
 
@@ -230,55 +242,92 @@
         <div v-else-if="currentSpool" class="d-flex align-center ga-2">
           <div
             class="filament-swatch"
-            :style="{ backgroundColor: currentSpool.colorHex || '#999' }"
+            :style="{ backgroundColor: currentSpool.colorHex || '#aaa' }"
           />
           <div>
             <div class="text-body-2 font-weight-medium">{{ currentSpool.name }}</div>
             <div class="text-caption text-medium-emphasis">
-              {{ currentSpool.material.toUpperCase() }} · {{ currentSpool.colorName }} ·
-              {{ currentSpool.remainingWeightGrams ?? '?' }}g remaining
+              {{ currentSpool.material?.toUpperCase() ?? '' }} · {{ currentSpool.colorName }}
+            </div>
+            <div class="text-caption">
+              <span :class="remainingPct < 20 ? 'text-error' : ''">
+                {{ currentSpool.remainingWeightGrams ?? '?' }}g
+              </span>
+              <span class="text-medium-emphasis"> / {{ currentSpool.totalWeightGrams ?? '?' }}g</span>
             </div>
           </div>
         </div>
         <div v-else class="text-caption text-medium-emphasis">
-          No spool assigned — click Change to load filament
+          No filament loaded
         </div>
       </v-card-text>
     </v-card>
 
-    <!-- Change Spool Dialog -->
-    <v-dialog v-model="changeSpoolDialog" max-width="420">
+    <!-- Load Spool Dialog -->
+    <v-dialog v-model="loadSpoolDialog" max-width="460">
       <v-card>
-        <v-card-title class="pt-4 px-6">Change Spool — {{ storedSideNavPrinter?.name }}</v-card-title>
-        <v-card-text class="px-6">
+        <v-card-title class="pt-4 px-6">Load Spool — {{ storedSideNavPrinter?.name }}</v-card-title>
+        <v-card-text class="px-6 pb-0">
+          <!-- Preset picker -->
           <v-select
-            v-model="selectedSpoolId"
-            label="Select Spool"
-            :items="spoolSelectItems"
+            v-model="selectedPresetId"
+            label="Load from preset (optional)"
+            :items="presetSelectItems"
             item-title="label"
             item-value="id"
             clearable
+            hide-details
+            class="mb-4"
+            @update:model-value="applyPreset"
+          />
+          <v-divider class="mb-4" />
+
+          <v-text-field v-model="loadForm.name" label="Spool name / brand" required class="mb-1" />
+          <v-row>
+            <v-col cols="6">
+              <v-select
+                v-model="loadForm.material"
+                label="Material"
+                :items="['pla', 'petg', 'abs', 'tpu', 'asa', 'pa', 'pc', 'other']"
+              />
+            </v-col>
+            <v-col cols="6">
+              <v-text-field v-model="loadForm.colorName" label="Color (e.g. tan)" />
+            </v-col>
+          </v-row>
+          <v-text-field v-model="loadForm.colorHex" label="Color hex (e.g. #C4A35A)" class="mb-1">
+            <template #prepend-inner>
+              <div
+                v-if="loadForm.colorHex"
+                class="filament-swatch"
+                :style="{ backgroundColor: loadForm.colorHex }"
+              />
+            </template>
+          </v-text-field>
+          <v-text-field
+            v-model.number="loadForm.weightGrams"
+            label="Starting weight (g)"
+            type="number"
+          />
+
+          <v-checkbox
+            v-model="saveAsPreset"
+            label="Save as preset"
+            hide-details
+            density="compact"
+            class="mb-2"
           />
         </v-card-text>
         <v-card-actions class="px-6 pb-4">
-          <v-btn
-            color="error"
-            variant="tonal"
-            :loading="filamentSaving"
-            :disabled="!currentSpool"
-            @click="doUnassignSpool"
-          >
-            Unassign
-          </v-btn>
           <v-spacer />
-          <v-btn variant="text" @click="changeSpoolDialog = false">Cancel</v-btn>
+          <v-btn variant="text" @click="loadSpoolDialog = false">Cancel</v-btn>
           <v-btn
             color="primary"
             :loading="filamentSaving"
-            :disabled="!selectedSpoolId"
-            @click="doAssignSpool"
+            :disabled="!loadForm.name || !loadForm.material || !loadForm.colorName"
+            @click="doLoadSpool"
           >
-            Assign
+            Load
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -502,7 +551,8 @@ import { computed, ref, watch } from 'vue'
 import { generateInitials } from '@/shared/noun-adjectives.data'
 import { PrinterRemoteFileService, PrintersService } from '@/backend'
 import { PrinterMaintenanceLogService } from '@/backend/printer-maintenance-log.service'
-import { FilamentService, type FilamentSpool } from '@/backend/filament.service'
+import { FilamentService, type FilamentSpool, type FilamentPreset } from '@/backend/filament.service'
+import { useFilamentStore } from '@/store/filament.store'
 import { FileDto } from '@/models/printers/printer-file.model'
 import { formatFileSize } from '@/utils/file-size.util'
 import { usePrinterStore } from '@/store/printer.store'
@@ -526,6 +576,7 @@ interface TreeNode {
 
 const printersStore = usePrinterStore()
 const printerStateStore = usePrinterStateStore()
+const filamentStore = useFilamentStore()
 const fileExplorer = useFileExplorer()
 
 const fileSearch = ref<string | undefined>(undefined)
@@ -619,16 +670,25 @@ const currentPrintingFilePath = computed(() => {
 })
 // ── Filament state ─────────────────────────────────────────────────────────
 const currentSpool = ref<FilamentSpool | null>(null)
-const allSpools = ref<FilamentSpool[]>([])
+const presets = ref<FilamentPreset[]>([])
 const filamentLoading = ref(false)
 const filamentSaving = ref(false)
-const changeSpoolDialog = ref(false)
-const selectedSpoolId = ref<number | null>(null)
+const loadSpoolDialog = ref(false)
+const selectedPresetId = ref<number | null>(null)
+const saveAsPreset = ref(false)
 
-const spoolSelectItems = computed(() =>
-  allSpools.value.map((s) => ({
-    id: s.id,
-    label: `${s.name} — ${s.material.toUpperCase()} ${s.colorName}`,
+const emptyLoadForm = () => ({ name: '', material: 'pla', colorName: '', colorHex: '', weightGrams: 1000 })
+const loadForm = ref(emptyLoadForm())
+
+const remainingPct = computed(() => {
+  if (!currentSpool.value?.remainingWeightGrams || !currentSpool.value?.totalWeightGrams) return 100
+  return (currentSpool.value.remainingWeightGrams / currentSpool.value.totalWeightGrams) * 100
+})
+
+const presetSelectItems = computed(() =>
+  presets.value.map((p) => ({
+    id: p.id,
+    label: `${p.name} — ${p.material.toUpperCase()} ${p.colorName}`,
   }))
 )
 
@@ -636,37 +696,70 @@ async function fetchCurrentSpool() {
   if (!printerId.value) return
   filamentLoading.value = true
   try {
-    currentSpool.value = await FilamentService.getCurrentAssignment(printerId.value)
+    const assignment = await FilamentService.getCurrentAssignment(printerId.value)
+    currentSpool.value = assignment?.spool ?? null
   } finally {
     filamentLoading.value = false
   }
 }
 
-async function openChangeSpoolDialog() {
-  selectedSpoolId.value = currentSpool.value?.id ?? null
-  allSpools.value = await FilamentService.listSpools()
-  changeSpoolDialog.value = true
+async function openLoadSpoolDialog() {
+  loadForm.value = emptyLoadForm()
+  selectedPresetId.value = null
+  saveAsPreset.value = false
+  presets.value = await FilamentService.listPresets()
+  loadSpoolDialog.value = true
 }
 
-async function doAssignSpool() {
-  if (!printerId.value || !selectedSpoolId.value) return
+function applyPreset(presetId: number | null) {
+  if (!presetId) return
+  const preset = presets.value.find((p) => p.id === presetId)
+  if (!preset) return
+  loadForm.value = {
+    name: preset.name,
+    material: preset.material,
+    colorName: preset.colorName,
+    colorHex: preset.colorHex ?? '',
+    weightGrams: preset.defaultWeightGrams ?? 1000,
+  }
+}
+
+async function doLoadSpool() {
+  if (!printerId.value) return
   filamentSaving.value = true
   try {
-    await FilamentService.assignSpool(printerId.value, selectedSpoolId.value)
-    changeSpoolDialog.value = false
-    await fetchCurrentSpool()
+    if (saveAsPreset.value) {
+      await FilamentService.createPreset({
+        name: loadForm.value.name,
+        brand: null,
+        material: loadForm.value.material,
+        colorName: loadForm.value.colorName,
+        colorHex: loadForm.value.colorHex || null,
+        defaultWeightGrams: loadForm.value.weightGrams,
+      })
+    }
+    const assignment = await FilamentService.loadSpool(printerId.value, {
+      name: loadForm.value.name,
+      material: loadForm.value.material,
+      colorName: loadForm.value.colorName,
+      colorHex: loadForm.value.colorHex || null,
+      weightGrams: loadForm.value.weightGrams,
+    })
+    currentSpool.value = assignment.spool ?? null
+    filamentStore.setSpoolForPrinter(printerId.value, assignment.spool ?? null)
+    loadSpoolDialog.value = false
   } finally {
     filamentSaving.value = false
   }
 }
 
-async function doUnassignSpool() {
+async function doUnloadSpool() {
   if (!printerId.value) return
   filamentSaving.value = true
   try {
     await FilamentService.unassignSpool(printerId.value)
-    changeSpoolDialog.value = false
     currentSpool.value = null
+    filamentStore.setSpoolForPrinter(printerId.value, null)
   } finally {
     filamentSaving.value = false
   }

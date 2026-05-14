@@ -110,6 +110,16 @@ export class SkuService {
     const client = await getHttpClient()
     await client.delete(`/api/v2/sku/${skuId}/parts/${partId}`)
   }
+
+  static async uploadPartGcode(skuId: number, partId: number, file: File): Promise<SkuPart> {
+    const client = await getHttpClient()
+    const form = new FormData()
+    form.append('file', file)
+    const { data } = await client.post<SkuPart>(`/api/v2/sku/${skuId}/parts/${partId}/file`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return data
+  }
 }
 
 export class BuildRequestService {

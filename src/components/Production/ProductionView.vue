@@ -86,7 +86,15 @@
           hover
         >
           <template #item.status="{ item }">
-            <v-chip :color="statusColor(item.status)" size="small">
+            <v-tooltip v-if="item.statusReason" :text="item.statusReason" location="top">
+              <template #activator="{ props }">
+                <v-chip v-bind="props" :color="statusColor(item.status)" size="small">
+                  {{ item.status }}
+                  <v-icon end size="x-small">mdi:mdi-information-outline</v-icon>
+                </v-chip>
+              </template>
+            </v-tooltip>
+            <v-chip v-else :color="statusColor(item.status)" size="small">
               {{ item.status }}
             </v-chip>
           </template>
@@ -193,7 +201,22 @@
                         <v-chip v-else-if="part.stlFileStorageId" color="orange" size="x-small">STL only</v-chip>
                         <v-chip v-else color="error" size="x-small">No file</v-chip>
                       </td>
-                      <td>
+                      <td class="d-flex align-center ga-1">
+                        <v-tooltip text="Upload gcode file" location="top">
+                          <template #activator="{ props }">
+                            <v-btn
+                              v-bind="props"
+                              icon
+                              size="x-small"
+                              variant="text"
+                              color="primary"
+                              :loading="uploadingPartId === part.id"
+                              @click="triggerGcodeUpload(item, part)"
+                            >
+                              <v-icon>mdi:mdi-upload</v-icon>
+                            </v-btn>
+                          </template>
+                        </v-tooltip>
                         <v-btn icon size="x-small" variant="text" color="error" @click="deletePart(item, part)">
                           <v-icon>mdi:mdi-delete</v-icon>
                         </v-btn>
@@ -304,6 +327,14 @@
       </v-card>
     </v-dialog>
 
+    <input
+      ref="gcodeFileInput"
+      type="file"
+      accept=".gcode,.gco,.g,.bgcode,.3mf"
+      style="display:none"
+      @change="onGcodeFileSelected"
+    />
+
     <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
       {{ snackbarText }}
     </v-snackbar>
@@ -312,6 +343,7 @@
 
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue'
+import axios from 'axios'
 import {
   BuildRequestService,
   SkuService,
@@ -343,6 +375,9 @@ const partDialog = ref(false)
 const rejectingRequest = ref<BuildRequest | null>(null)
 const rejectReason = ref('')
 const addingPartToSku = ref<Sku | null>(null)
+const uploadingPartId = ref<number | null>(null)
+const gcodeFileInput = ref<HTMLInputElement | null>(null)
+const uploadTarget = ref<{ sku: Sku; part: SkuPart } | null>(null)
 
 const snackbar = ref(false)
 const snackbarText = ref('')
@@ -442,8 +477,14 @@ async function acceptRequest(req: BuildRequest) {
     notify(`Request #${req.id} accepted`)
     await fetchRequests()
     await fetchDispatchStatus()
-  } catch {
-    notify('Failed to accept request', 'error')
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 422) {
+      const reason = err.response.data?.error ?? 'Request was rejected'
+      notify(`Rejected: ${reason}`, 'warning')
+    } else {
+      notify('Failed to accept request', 'error')
+    }
+    await fetchRequests()
   } finally {
     actioning.value = null
   }
@@ -569,6 +610,31 @@ async function deletePart(sku: Sku, part: SkuPart) {
     await fetchSkus()
   } catch {
     notify('Failed to delete part', 'error')
+  }
+}
+
+// ── Gcode upload ───────────────────────────────────────────────────────────
+function triggerGcodeUpload(sku: Sku, part: SkuPart) {
+  uploadTarget.value = { sku, part }
+  gcodeFileInput.value?.click()
+}
+
+async function onGcodeFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file || !uploadTarget.value) return
+  const { sku, part } = uploadTarget.value
+  uploadingPartId.value = part.id
+  try {
+    await SkuService.uploadPartGcode(sku.id, part.id, file)
+    notify(`Gcode uploaded for "${part.partName}"`)
+    await fetchSkus()
+  } catch {
+    notify('Failed to upload gcode', 'error')
+  } finally {
+    uploadingPartId.value = null
+    input.value = ''
+    uploadTarget.value = null
   }
 }
 

@@ -37,12 +37,15 @@ import { DialogName } from '@/components/Generic/Dialogs/dialog.constants'
 import HomeToolbar from './HomeToolbar.vue'
 import UploadToolbar from './UploadToolbar.vue'
 import PrinterGrid from './PrinterGrid.vue'
+import { useFilamentStore } from '@/store/filament.store'
 
 const route = useRoute()
 const floorStore = useFloorStore()
 const addFloorDialog = useDialog(DialogName.AddOrUpdateFloorDialog)
+const filamentStore = useFilamentStore()
 
 onMounted(() => {
+  void filamentStore.fetchAll()
   // Check for floor query parameter
   const floorId = route.query.floor
   if (floorId) {

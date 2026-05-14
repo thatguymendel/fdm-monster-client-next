@@ -16,6 +16,26 @@ export interface FilamentSpool {
   updatedAt: string
 }
 
+export interface FilamentPreset {
+  id: number
+  name: string
+  brand: string | null
+  material: string
+  colorName: string
+  colorHex: string | null
+  defaultWeightGrams: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface LoadSpoolDto {
+  name: string
+  material: string
+  colorName: string
+  colorHex?: string | null
+  weightGrams: number
+}
+
 export interface CreateSpoolDto {
   name: string
   brand?: string | null
@@ -67,10 +87,10 @@ export class FilamentService {
     return data
   }
 
-  static async getCurrentAssignment(printerId: number): Promise<FilamentSpool | null> {
+  static async getCurrentAssignment(printerId: number): Promise<FilamentAssignment | null> {
     const client = await getHttpClient()
     try {
-      const { data } = await client.get<FilamentSpool>(`/api/v2/filament/printer/${printerId}/current`)
+      const { data } = await client.get<FilamentAssignment | null>(`/api/v2/filament/printer/${printerId}/current`)
       return data
     } catch {
       return null
@@ -89,5 +109,31 @@ export class FilamentService {
   static async unassignSpool(printerId: number, toolIndex = 0): Promise<void> {
     const client = await getHttpClient()
     await client.delete(`/api/v2/filament/printer/${printerId}/assign`, { params: { toolIndex } })
+  }
+
+  static async loadSpool(printerId: number, dto: LoadSpoolDto, toolIndex = 0): Promise<FilamentAssignment> {
+    const client = await getHttpClient()
+    const { data } = await client.post<FilamentAssignment>(
+      `/api/v2/filament/printer/${printerId}/load`,
+      { ...dto, toolIndex }
+    )
+    return data
+  }
+
+  static async listPresets(): Promise<FilamentPreset[]> {
+    const client = await getHttpClient()
+    const { data } = await client.get<FilamentPreset[]>('/api/v2/filament/presets')
+    return data
+  }
+
+  static async createPreset(dto: Omit<FilamentPreset, 'id' | 'createdAt' | 'updatedAt'>): Promise<FilamentPreset> {
+    const client = await getHttpClient()
+    const { data } = await client.post<FilamentPreset>('/api/v2/filament/presets', dto)
+    return data
+  }
+
+  static async deletePreset(id: number): Promise<void> {
+    const client = await getHttpClient()
+    await client.delete(`/api/v2/filament/presets/${id}`)
   }
 }

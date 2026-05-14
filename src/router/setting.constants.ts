@@ -9,6 +9,7 @@ export const settingPage = {
   diagnostics: "diagnostics",
   experimental: "experimental",
   slicer: "slicer",
+  filamentPresets: "filamentPresets",
   apiKeys: "apiKeys",
   debugSocket: "debugSocket",
   about: "about",
@@ -73,7 +74,14 @@ export const settingsPage = {
     title: "Slicer Integration",
     icon: "print",
     path: "/settings/slicer",
-    divider: false, },
+    divider: false,
+  },
+  [settingPage.filamentPresets]: {
+    title: "Filament Presets",
+    icon: "mdi:mdi-water",
+    path: "/settings/filament-presets",
+    divider: false,
+  },
   [settingPage.apiKeys]: {
     title: "API Keys",
     icon: "vpn_key",
