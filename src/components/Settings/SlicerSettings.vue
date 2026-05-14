@@ -125,13 +125,12 @@
         :usecols="false"
         class="mt-4"
       >
-        <v-switch
+        <v-checkbox
           v-model="slicerAutoSelectFile"
           label="Auto-select slicer file for dispatch"
-          hint="When a slicer uploads a file, automatically load it into the toolbar so you can immediately dispatch it to printers."
+          hint="When a slicer uploads a file via Upload and Print, automatically load it into the toolbar so you can immediately dispatch it to printers."
           persistent-hint
-          color="primary"
-          density="compact"
+          hide-details
           @update:model-value="updateSlicerAutoSelect"
         />
       </SettingSection>

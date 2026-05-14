@@ -78,13 +78,12 @@
         :usecols="false"
         class="mt-4"
       >
-        <v-switch
+        <v-checkbox
           v-model="clickToOpenDrawer"
           label="Click tile to open file drawer"
           hint="When enabled, clicking a printer tile opens its file drawer instead of toggling multi-select. Multi-select is only active when a dispatch file is loaded."
           persistent-hint
-          color="primary"
-          density="compact"
+          hide-details
           @update:model-value="updateClickToOpenDrawer"
         />
       </SettingSection>
