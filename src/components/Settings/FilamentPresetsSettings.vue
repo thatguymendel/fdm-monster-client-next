@@ -56,19 +56,18 @@
               <v-text-field v-model="form.colorName" label="Color (e.g. tan)" />
             </v-col>
           </v-row>
-          <v-text-field v-model="form.colorHex" label="Color hex (e.g. #C4A35A)" class="mb-1">
-            <template #prepend-inner>
-              <div class="color-picker-wrapper">
-                <div class="color-picker-btn" :style="{ backgroundColor: form.colorHex || '#aaaaaa' }" />
-                <input
-                  type="color"
-                  :value="form.colorHex || '#aaaaaa'"
-                  class="color-picker-input"
-                  @input="(e) => form.colorHex = (e.target as HTMLInputElement).value"
-                />
-              </div>
-            </template>
-          </v-text-field>
+          <div class="d-flex align-center ga-2 mb-1">
+            <div class="color-picker-wrapper">
+              <div class="color-picker-btn" :style="{ backgroundColor: form.colorHex || '#aaaaaa' }" />
+              <input
+                type="color"
+                :value="form.colorHex || '#aaaaaa'"
+                class="color-picker-input"
+                @input="(e) => form.colorHex = (e.target as HTMLInputElement).value"
+              />
+            </div>
+            <v-text-field v-model="form.colorHex" label="Color hex (e.g. #C4A35A)" hide-details density="compact" />
+          </div>
           <v-text-field
             v-model.number="form.defaultWeightGrams"
             label="Default spool weight (g)"

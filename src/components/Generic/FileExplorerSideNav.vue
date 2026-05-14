@@ -295,19 +295,18 @@
               <v-text-field v-model="loadForm.colorName" label="Color (e.g. tan)" />
             </v-col>
           </v-row>
-          <v-text-field v-model="loadForm.colorHex" label="Color hex (e.g. #C4A35A)" class="mb-1">
-            <template #prepend-inner>
-              <div class="color-picker-wrapper">
-                <div class="color-picker-btn" :style="{ backgroundColor: loadForm.colorHex || '#aaaaaa' }" />
-                <input
-                  type="color"
-                  :value="loadForm.colorHex || '#aaaaaa'"
-                  class="color-picker-input"
-                  @input="(e) => loadForm.colorHex = (e.target as HTMLInputElement).value"
-                />
-              </div>
-            </template>
-          </v-text-field>
+          <div class="d-flex align-center ga-2 mb-1">
+            <div class="color-picker-wrapper">
+              <div class="color-picker-btn" :style="{ backgroundColor: loadForm.colorHex || '#aaaaaa' }" />
+              <input
+                type="color"
+                :value="loadForm.colorHex || '#aaaaaa'"
+                class="color-picker-input"
+                @input="(e) => loadForm.colorHex = (e.target as HTMLInputElement).value"
+              />
+            </div>
+            <v-text-field v-model="loadForm.colorHex" label="Color hex (e.g. #C4A35A)" hide-details density="compact" />
+          </div>
           <v-text-field
             v-model.number="loadForm.weightGrams"
             label="Starting weight (g)"
