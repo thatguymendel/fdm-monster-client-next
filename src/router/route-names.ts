@@ -12,4 +12,6 @@ export const RouteNames = {
   PermissionDenied: 'PermissionDenied',
   NotFound: 'NotFound',
   FirstTimeSetup: 'FirstTimeSetup',
+  Filament: 'Filament',
+  Production: 'Production',
 }

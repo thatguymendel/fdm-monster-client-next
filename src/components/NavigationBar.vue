@@ -49,6 +49,8 @@ const items = [
   ['mdi:mdi-history', 'Print Jobs', '/jobs'],
   ['mdi:mdi-folder', 'Files', '/files'],
   ['mdi:mdi-bug', 'Maintenance', '/maintenance-logs'],
+  ['mdi:mdi-water', 'Filament', '/filament'],
+  ['mdi:mdi-factory', 'Production', '/production'],
   ['mdi:mdi-cog', 'Settings', '/settings']
 ]
 </script>

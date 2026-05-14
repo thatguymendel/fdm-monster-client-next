@@ -23,6 +23,8 @@ import PrintJobsView from '../components/PrintJobs/PrintJobsView.vue'
 import MaintenanceLogsView from '../components/MaintenanceLogs/MaintenanceLogsView.vue'
 import FilesView from '../components/Files/FilesView.vue'
 import ExperimentalSettings from '@/components/Settings/ExperimentalSettings.vue'
+import FilamentView from '@/components/Filament/FilamentView.vue'
+import ProductionView from '@/components/Production/ProductionView.vue'
 import SlicerSettings from '@/components/Settings/SlicerSettings.vue'
 import ApiKeysSettings from '@/components/Settings/ApiKeysSettings.vue'
 import DebugSocketSettings from "@/components/Settings/DebugSocketSettings.vue";
@@ -181,6 +183,18 @@ const router = createRouter({
       name: RouteNames.Files,
       meta: NeedsAuth,
       component: FilesView
+    },
+    {
+      path: '/filament',
+      name: RouteNames.Filament,
+      meta: NeedsAuth,
+      component: FilamentView
+    },
+    {
+      path: '/production',
+      name: RouteNames.Production,
+      meta: NeedsAuth,
+      component: ProductionView
     },
     {
       path: '/permission-denied',

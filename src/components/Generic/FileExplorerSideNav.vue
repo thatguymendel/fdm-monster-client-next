@@ -207,6 +207,83 @@
       </v-card-text>
     </v-card>
 
+    <!-- Filament Section -->
+    <v-card
+      v-if="storedSideNavPrinter"
+      class="ma-3 mb-4"
+      elevation="1"
+      rounded="lg"
+    >
+      <v-card-title class="text-subtitle-1 py-3">
+        <div class="d-flex align-center">
+          <v-icon start size="small" class="mr-2">mdi:mdi-water</v-icon>
+          <span>Filament</span>
+          <v-spacer />
+          <v-btn size="small" variant="text" @click="openChangeSpoolDialog">Change</v-btn>
+        </div>
+      </v-card-title>
+
+      <v-card-text class="pt-0">
+        <div v-if="filamentLoading" class="d-flex justify-center py-2">
+          <v-progress-circular indeterminate size="20" />
+        </div>
+        <div v-else-if="currentSpool" class="d-flex align-center ga-2">
+          <div
+            class="filament-swatch"
+            :style="{ backgroundColor: currentSpool.colorHex || '#999' }"
+          />
+          <div>
+            <div class="text-body-2 font-weight-medium">{{ currentSpool.name }}</div>
+            <div class="text-caption text-medium-emphasis">
+              {{ currentSpool.material.toUpperCase() }} · {{ currentSpool.colorName }} ·
+              {{ currentSpool.remainingWeightGrams ?? '?' }}g remaining
+            </div>
+          </div>
+        </div>
+        <div v-else class="text-caption text-medium-emphasis">
+          No spool assigned — click Change to load filament
+        </div>
+      </v-card-text>
+    </v-card>
+
+    <!-- Change Spool Dialog -->
+    <v-dialog v-model="changeSpoolDialog" max-width="420">
+      <v-card>
+        <v-card-title class="pt-4 px-6">Change Spool — {{ storedSideNavPrinter?.name }}</v-card-title>
+        <v-card-text class="px-6">
+          <v-select
+            v-model="selectedSpoolId"
+            label="Select Spool"
+            :items="spoolSelectItems"
+            item-title="label"
+            item-value="id"
+            clearable
+          />
+        </v-card-text>
+        <v-card-actions class="px-6 pb-4">
+          <v-btn
+            color="error"
+            variant="tonal"
+            :loading="filamentSaving"
+            :disabled="!currentSpool"
+            @click="doUnassignSpool"
+          >
+            Unassign
+          </v-btn>
+          <v-spacer />
+          <v-btn variant="text" @click="changeSpoolDialog = false">Cancel</v-btn>
+          <v-btn
+            color="primary"
+            :loading="filamentSaving"
+            :disabled="!selectedSpoolId"
+            @click="doAssignSpool"
+          >
+            Assign
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Print Controls -->
     <v-card
       v-if="isPrinting || isStoppable || isPaused"
@@ -425,6 +502,7 @@ import { computed, ref, watch } from 'vue'
 import { generateInitials } from '@/shared/noun-adjectives.data'
 import { PrinterRemoteFileService, PrintersService } from '@/backend'
 import { PrinterMaintenanceLogService } from '@/backend/printer-maintenance-log.service'
+import { FilamentService, type FilamentSpool } from '@/backend/filament.service'
 import { FileDto } from '@/models/printers/printer-file.model'
 import { formatFileSize } from '@/utils/file-size.util'
 import { usePrinterStore } from '@/store/printer.store'
@@ -539,6 +617,61 @@ const currentPrintingFilePath = computed(() => {
   }
   return printerStateStore.printingFilePathsByPrinterId[printerId.value]
 })
+// ── Filament state ─────────────────────────────────────────────────────────
+const currentSpool = ref<FilamentSpool | null>(null)
+const allSpools = ref<FilamentSpool[]>([])
+const filamentLoading = ref(false)
+const filamentSaving = ref(false)
+const changeSpoolDialog = ref(false)
+const selectedSpoolId = ref<number | null>(null)
+
+const spoolSelectItems = computed(() =>
+  allSpools.value.map((s) => ({
+    id: s.id,
+    label: `${s.name} — ${s.material.toUpperCase()} ${s.colorName}`,
+  }))
+)
+
+async function fetchCurrentSpool() {
+  if (!printerId.value) return
+  filamentLoading.value = true
+  try {
+    currentSpool.value = await FilamentService.getCurrentAssignment(printerId.value)
+  } finally {
+    filamentLoading.value = false
+  }
+}
+
+async function openChangeSpoolDialog() {
+  selectedSpoolId.value = currentSpool.value?.id ?? null
+  allSpools.value = await FilamentService.listSpools()
+  changeSpoolDialog.value = true
+}
+
+async function doAssignSpool() {
+  if (!printerId.value || !selectedSpoolId.value) return
+  filamentSaving.value = true
+  try {
+    await FilamentService.assignSpool(printerId.value, selectedSpoolId.value)
+    changeSpoolDialog.value = false
+    await fetchCurrentSpool()
+  } finally {
+    filamentSaving.value = false
+  }
+}
+
+async function doUnassignSpool() {
+  if (!printerId.value) return
+  filamentSaving.value = true
+  try {
+    await FilamentService.unassignSpool(printerId.value)
+    changeSpoolDialog.value = false
+    currentSpool.value = null
+  } finally {
+    filamentSaving.value = false
+  }
+}
+
 const refreshFiles = async () => {
   fileExplorer.setLoading(true)
   fileExplorer.setError(false)
@@ -579,9 +712,10 @@ const deleteFile = async (file: FileDto) => {
 
 watch(printerId, async (newPrinterId, oldPrinterId) => {
   if (newPrinterId && newPrinterId !== oldPrinterId) {
-    await refreshFiles()
+    await Promise.all([refreshFiles(), fetchCurrentSpool()])
   } else if (!newPrinterId) {
     fileList.value = undefined
+    currentSpool.value = null
   }
 })
 
@@ -797,6 +931,14 @@ function getTreeIcon(item: TreeNode) {
 
 .cursor-pointer {
   cursor: pointer;
+}
+
+.filament-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
 }
 
 .min-width-0 {
