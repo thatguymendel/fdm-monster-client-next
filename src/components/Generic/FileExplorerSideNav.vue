@@ -297,20 +297,17 @@
           </v-row>
           <v-text-field v-model="loadForm.colorHex" label="Color hex (e.g. #C4A35A)" class="mb-1">
             <template #prepend-inner>
-              <div
-                class="color-picker-btn"
-                :style="{ backgroundColor: loadForm.colorHex || '#aaaaaa' }"
-                @click.stop="loadColorInputRef?.click()"
-              />
+              <div class="color-picker-wrapper">
+                <div class="color-picker-btn" :style="{ backgroundColor: loadForm.colorHex || '#aaaaaa' }" />
+                <input
+                  type="color"
+                  :value="loadForm.colorHex || '#aaaaaa'"
+                  class="color-picker-input"
+                  @input="(e) => loadForm.colorHex = (e.target as HTMLInputElement).value"
+                />
+              </div>
             </template>
           </v-text-field>
-          <input
-            ref="loadColorInputRef"
-            type="color"
-            :value="loadForm.colorHex || '#aaaaaa'"
-            style="display:none"
-            @input="(e) => loadForm.colorHex = (e.target as HTMLInputElement).value"
-          />
           <v-text-field
             v-model.number="loadForm.weightGrams"
             label="Starting weight (g)"
@@ -684,7 +681,6 @@ const loadSpoolDialog = ref(false)
 const selectedPresetId = ref<number | null>(null)
 const saveAsPreset = ref(false)
 
-const loadColorInputRef = ref<HTMLInputElement | null>(null)
 const emptyLoadForm = () => ({ name: '', material: 'pla', colorName: '', colorHex: '', weightGrams: 1000 })
 const loadForm = ref(emptyLoadForm())
 
@@ -1042,13 +1038,30 @@ function getTreeIcon(item: TreeNode) {
   flex-shrink: 0;
 }
 
-.color-picker-btn {
+.color-picker-wrapper {
+  position: relative;
   width: 22px;
   height: 22px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.color-picker-btn {
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.color-picker-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
   cursor: pointer;
-  flex-shrink: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  padding: 0;
 }
 
 .min-width-0 {

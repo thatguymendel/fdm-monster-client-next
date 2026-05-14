@@ -58,20 +58,17 @@
           </v-row>
           <v-text-field v-model="form.colorHex" label="Color hex (e.g. #C4A35A)" class="mb-1">
             <template #prepend-inner>
-              <div
-                class="color-picker-btn"
-                :style="{ backgroundColor: form.colorHex || '#aaaaaa' }"
-                @click.stop="presetColorInputRef?.click()"
-              />
+              <div class="color-picker-wrapper">
+                <div class="color-picker-btn" :style="{ backgroundColor: form.colorHex || '#aaaaaa' }" />
+                <input
+                  type="color"
+                  :value="form.colorHex || '#aaaaaa'"
+                  class="color-picker-input"
+                  @input="(e) => form.colorHex = (e.target as HTMLInputElement).value"
+                />
+              </div>
             </template>
           </v-text-field>
-          <input
-            ref="presetColorInputRef"
-            type="color"
-            :value="form.colorHex || '#aaaaaa'"
-            style="display:none"
-            @input="(e) => form.colorHex = (e.target as HTMLInputElement).value"
-          />
           <v-text-field
             v-model.number="form.defaultWeightGrams"
             label="Default spool weight (g)"
@@ -119,7 +116,6 @@ const snackbar = ref(false)
 const snackbarText = ref('')
 const snackbarColor = ref('success')
 
-const presetColorInputRef = ref<HTMLInputElement | null>(null)
 const emptyForm = () => ({ name: '', material: 'pla', colorName: '', colorHex: '', defaultWeightGrams: 1000 })
 const form = ref(emptyForm())
 
@@ -204,12 +200,29 @@ function notify(text: string, color = 'success') {
   flex-shrink: 0;
 }
 
-.color-picker-btn {
+.color-picker-wrapper {
+  position: relative;
   width: 20px;
   height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.color-picker-btn {
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.color-picker-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
   cursor: pointer;
-  flex-shrink: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  padding: 0;
 }
 </style>
