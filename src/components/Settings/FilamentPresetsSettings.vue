@@ -58,11 +58,20 @@
           </v-row>
           <v-text-field v-model="form.colorHex" label="Color hex (e.g. #C4A35A)" class="mb-1">
             <template #prepend-inner>
-              <label class="color-picker-btn" :style="{ backgroundColor: form.colorHex || '#aaaaaa' }">
-                <input type="color" :value="form.colorHex || '#aaaaaa'" @input="(e) => form.colorHex = (e.target as HTMLInputElement).value" />
-              </label>
+              <div
+                class="color-picker-btn"
+                :style="{ backgroundColor: form.colorHex || '#aaaaaa' }"
+                @click.stop="presetColorInputRef?.click()"
+              />
             </template>
           </v-text-field>
+          <input
+            ref="presetColorInputRef"
+            type="color"
+            :value="form.colorHex || '#aaaaaa'"
+            style="display:none"
+            @input="(e) => form.colorHex = (e.target as HTMLInputElement).value"
+          />
           <v-text-field
             v-model.number="form.defaultWeightGrams"
             label="Default spool weight (g)"
@@ -110,6 +119,7 @@ const snackbar = ref(false)
 const snackbarText = ref('')
 const snackbarColor = ref('success')
 
+const presetColorInputRef = ref<HTMLInputElement | null>(null)
 const emptyForm = () => ({ name: '', material: 'pla', colorName: '', colorHex: '', defaultWeightGrams: 1000 })
 const form = ref(emptyForm())
 
@@ -195,22 +205,11 @@ function notify(text: string, color = 'success') {
 }
 
 .color-picker-btn {
-  display: inline-block;
   width: 20px;
   height: 20px;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.25);
   cursor: pointer;
   flex-shrink: 0;
-  overflow: hidden;
-}
-
-.color-picker-btn input[type="color"] {
-  opacity: 0;
-  width: 100%;
-  height: 100%;
-  cursor: pointer;
-  padding: 0;
-  border: none;
 }
 </style>

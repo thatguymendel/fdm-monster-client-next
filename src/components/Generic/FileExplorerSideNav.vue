@@ -297,11 +297,20 @@
           </v-row>
           <v-text-field v-model="loadForm.colorHex" label="Color hex (e.g. #C4A35A)" class="mb-1">
             <template #prepend-inner>
-              <label class="color-picker-btn" :style="{ backgroundColor: loadForm.colorHex || '#aaaaaa' }">
-                <input type="color" :value="loadForm.colorHex || '#aaaaaa'" @input="(e) => loadForm.colorHex = (e.target as HTMLInputElement).value" />
-              </label>
+              <div
+                class="color-picker-btn"
+                :style="{ backgroundColor: loadForm.colorHex || '#aaaaaa' }"
+                @click.stop="loadColorInputRef?.click()"
+              />
             </template>
           </v-text-field>
+          <input
+            ref="loadColorInputRef"
+            type="color"
+            :value="loadForm.colorHex || '#aaaaaa'"
+            style="display:none"
+            @input="(e) => loadForm.colorHex = (e.target as HTMLInputElement).value"
+          />
           <v-text-field
             v-model.number="loadForm.weightGrams"
             label="Starting weight (g)"
@@ -675,6 +684,7 @@ const loadSpoolDialog = ref(false)
 const selectedPresetId = ref<number | null>(null)
 const saveAsPreset = ref(false)
 
+const loadColorInputRef = ref<HTMLInputElement | null>(null)
 const emptyLoadForm = () => ({ name: '', material: 'pla', colorName: '', colorHex: '', weightGrams: 1000 })
 const loadForm = ref(emptyLoadForm())
 
@@ -1033,23 +1043,12 @@ function getTreeIcon(item: TreeNode) {
 }
 
 .color-picker-btn {
-  display: inline-block;
   width: 22px;
   height: 22px;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.25);
   cursor: pointer;
   flex-shrink: 0;
-  overflow: hidden;
-}
-
-.color-picker-btn input[type="color"] {
-  opacity: 0;
-  width: 100%;
-  height: 100%;
-  cursor: pointer;
-  padding: 0;
-  border: none;
 }
 
 .min-width-0 {
