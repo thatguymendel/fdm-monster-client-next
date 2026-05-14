@@ -297,11 +297,9 @@
           </v-row>
           <v-text-field v-model="loadForm.colorHex" label="Color hex (e.g. #C4A35A)" class="mb-1">
             <template #prepend-inner>
-              <div
-                v-if="loadForm.colorHex"
-                class="filament-swatch"
-                :style="{ backgroundColor: loadForm.colorHex }"
-              />
+              <label class="color-picker-btn" :style="{ backgroundColor: loadForm.colorHex || '#aaaaaa' }">
+                <input type="color" :value="loadForm.colorHex || '#aaaaaa'" @input="(e) => loadForm.colorHex = (e.target as HTMLInputElement).value" />
+              </label>
             </template>
           </v-text-field>
           <v-text-field
@@ -1032,6 +1030,26 @@ function getTreeIcon(item: TreeNode) {
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.2);
   flex-shrink: 0;
+}
+
+.color-picker-btn {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.color-picker-btn input[type="color"] {
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  padding: 0;
+  border: none;
 }
 
 .min-width-0 {

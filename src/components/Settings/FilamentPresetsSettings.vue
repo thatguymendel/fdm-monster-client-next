@@ -58,7 +58,9 @@
           </v-row>
           <v-text-field v-model="form.colorHex" label="Color hex (e.g. #C4A35A)" class="mb-1">
             <template #prepend-inner>
-              <div v-if="form.colorHex" class="color-swatch" :style="{ backgroundColor: form.colorHex }" />
+              <label class="color-picker-btn" :style="{ backgroundColor: form.colorHex || '#aaaaaa' }">
+                <input type="color" :value="form.colorHex || '#aaaaaa'" @input="(e) => form.colorHex = (e.target as HTMLInputElement).value" />
+              </label>
             </template>
           </v-text-field>
           <v-text-field
@@ -190,5 +192,25 @@ function notify(text: string, color = 'success') {
   border-radius: 50%;
   border: 1px solid rgba(0,0,0,0.2);
   flex-shrink: 0;
+}
+
+.color-picker-btn {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.color-picker-btn input[type="color"] {
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  padding: 0;
+  border: none;
 }
 </style>
