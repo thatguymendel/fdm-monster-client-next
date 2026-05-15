@@ -4,837 +4,203 @@
     location="right"
     temporary
     width="600"
-    class="printer-side-nav d-flex flex-column"
+    class="printer-side-nav"
     @update:model-value="closeDrawer"
   >
-    <!-- Printer Header Card -->
-    <v-card
-      v-if="storedSideNavPrinter"
-      class="ma-3 mb-4"
-      elevation="2"
-      rounded="lg"
-    >
-      <v-card-text class="pb-2">
-        <div class="d-flex align-center mb-3">
-          <v-avatar
-            :size="48"
-            color="primary"
-            class="mr-3"
-          >
-            <span class="text-h6 font-weight-bold">
-              {{ avatarInitials() }}
-            </span>
+    <template v-if="storedSideNavPrinter">
+
+      <!-- Fixed header -->
+      <div class="drawer-header flex-shrink-0">
+        <div class="d-flex align-center ga-2 pa-3 pb-2">
+          <v-avatar size="40" color="primary" class="flex-shrink-0">
+            <span class="text-body-1 font-weight-bold">{{ avatarInitials }}</span>
           </v-avatar>
 
-          <div class="flex-grow-1">
-            <div class="text-h6 font-weight-bold">
+          <div class="flex-grow-1 min-width-0">
+            <div class="text-h6 font-weight-bold text-truncate">
               {{ storedSideNavPrinter.name }}
             </div>
-            <div class="text-caption text-medium-emphasis">
-              {{ serviceName }}
-            </div>
+            <div class="text-caption text-medium-emphasis">{{ serviceName }}</div>
           </div>
 
+          <v-chip :color="statusColor" :prepend-icon="statusIcon" size="small" class="flex-shrink-0">
+            {{ statusText }}
+          </v-chip>
+
           <v-btn
-            v-if="storedSideNavPrinter && hasWebInterface(storedSideNavPrinter.printerType)"
-            icon="open_in_new"
-            variant="text"
+            :icon="cameraVisible ? 'videocam' : 'videocam_off'"
             size="small"
+            variant="text"
+            :color="storedSideNavPrinter.streamURL ? 'default' : 'medium-emphasis'"
+            @click="cameraVisible = !cameraVisible"
+          />
+
+          <v-btn
+            v-if="hasWebInterfaceForPrinter"
+            icon="open_in_new"
+            size="small"
+            variant="text"
             @click="openPrinterURL()"
           />
         </div>
-
-        <!-- Status Chip -->
-        <v-chip
-          :color="getStatusColor()"
-          :prepend-icon="getStatusIcon()"
-          size="small"
-          class="mb-2"
-        >
-          {{ getStatusText() }}
-        </v-chip>
-
-        <!-- Print Progress -->
-        <div
-          v-if="currentJob?.progress && isPrinting"
-          class="mt-3"
-        >
-          <div class="d-flex justify-space-between align-center mb-1">
-            <span class="text-body-2">{{ currentPrintingFilePath }}</span>
-            <span class="text-body-2 font-weight-bold">
-              {{ truncateProgress(currentJob.progress.completion) }}%
-            </span>
-          </div>
-          <v-progress-linear
-            :model-value="currentJob.progress.completion"
-            color="primary"
-            height="6"
-            rounded
-          />
-        </div>
-      </v-card-text>
-    </v-card>
-
-    <!-- Status Alerts -->
-    <div class="ma-3">
-      <v-alert
-        v-if="!isEnabled"
-        type="warning"
-        variant="tonal"
-        class="mb-3"
-        density="compact"
-      >
-        <template #prepend>
-          <v-icon>power_off</v-icon>
-        </template>
-        Printer is disabled. Enable to receive live updates.
-      </v-alert>
-
-      <v-alert
-        v-else-if="!isOnline"
-        type="info"
-        variant="tonal"
-        class="mb-3"
-        density="compact"
-      >
-        <template #prepend>
-          <v-icon>wifi_off</v-icon>
-        </template>
-        Printer appears offline. Attempting to reconnect...
-      </v-alert>
-
-      <v-alert
-        v-if="storedSideNavPrinter?.disabledReason"
-        type="error"
-        variant="tonal"
-        class="mb-3"
-        density="compact"
-      >
-        <template #prepend>
-          <v-icon>construction</v-icon>
-        </template>
-        <div>
-          <div class="font-weight-bold">Under Maintenance</div>
-          <div class="text-caption">{{ storedSideNavPrinter.disabledReason }}</div>
-        </div>
-      </v-alert>
-
-      <v-alert
-        v-if="fileLoadError"
-        type="warning"
-        variant="tonal"
-        class="mb-3"
-        density="compact"
-      >
-        <template #prepend>
-          <v-icon>warning</v-icon>
-        </template>
-        <div>
-          <div>Unable to load files from {{ serviceName }}</div>
-          <v-btn
-            size="small"
-            variant="outlined"
-            class="mt-2"
-            @click="refreshFiles()"
-          >
-            Try Again
-          </v-btn>
-        </div>
-      </v-alert>
-    </div>
-
-    <!-- Quick Actions -->
-    <v-card
-      class="ma-3 mb-4"
-      elevation="1"
-      rounded="lg"
-    >
-      <v-card-title class="text-subtitle-1 py-3">
-        Quick Actions
-      </v-card-title>
-
-      <v-card-text class="pt-0">
-        <div class="d-flex flex-wrap ga-2">
-          <v-btn
-            :disabled="!isEnabled || !isOnline"
-            :color="isOperational ? 'warning' : 'success'"
-            size="small"
-            variant="outlined"
-            @click="togglePrinterConnection()"
-          >
-            <v-icon start>{{ isOperational ? 'usb_off' : 'usb' }}</v-icon>
-            {{ isOperational ? 'Disconnect' : 'Connect' }}
-          </v-btn>
-
-          <v-btn
-            :color="isEnabled ? 'warning' : 'success'"
-            size="small"
-            variant="outlined"
-            @click="toggleEnabled()"
-          >
-            <v-icon start>{{ isEnabled ? 'pause' : 'play_arrow' }}</v-icon>
-            {{ isEnabled ? 'Disable' : 'Enable' }}
-          </v-btn>
-
-          <v-btn
-            size="small"
-            variant="outlined"
-            @click="refreshSocketState()"
-          >
-            <v-icon start>refresh</v-icon>
-            Refresh
-          </v-btn>
-
-          <v-btn
-            :color="isUnderMaintenance ? 'warning' : 'default'"
-            size="small"
-            variant="outlined"
-            @click="toggleMaintenance()"
-          >
-            <v-icon start>{{ isUnderMaintenance ? 'build_circle' : 'build' }}</v-icon>
-            {{ isUnderMaintenance ? 'Update' : 'Maintenance' }}
-          </v-btn>
-
-          <v-btn
-            size="small"
-            variant="outlined"
-            @click="clickSettings()"
-          >
-            <v-icon start>settings</v-icon>
-            Settings
-          </v-btn>
-        </div>
-      </v-card-text>
-    </v-card>
-
-    <!-- Filament Section -->
-    <v-card
-      v-if="storedSideNavPrinter"
-      class="ma-3 mb-4"
-      elevation="1"
-      rounded="lg"
-    >
-      <v-card-title class="text-subtitle-1 py-3">
-        <div class="d-flex align-center">
-          <v-icon start size="small" class="mr-2">mdi:mdi-water</v-icon>
-          <span>Filament</span>
-          <v-spacer />
-          <v-btn
-            v-if="currentSpool"
-            size="small"
-            variant="text"
-            color="error"
-            :loading="filamentSaving"
-            @click="doUnloadSpool"
-          >
-            Unload
-          </v-btn>
-          <v-btn size="small" variant="tonal" color="primary" @click="openLoadSpoolDialog">
-            {{ currentSpool ? 'Change' : 'Load Spool' }}
-          </v-btn>
-        </div>
-      </v-card-title>
-
-      <v-card-text class="pt-0">
-        <div v-if="filamentLoading" class="d-flex justify-center py-2">
-          <v-progress-circular indeterminate size="20" />
-        </div>
-        <div v-else-if="currentSpool" class="d-flex align-center ga-2">
-          <div
-            class="filament-swatch"
-            :style="{ backgroundColor: currentSpool.colorHex || '#aaa' }"
-          />
-          <div>
-            <div class="text-body-2 font-weight-medium">{{ currentSpool.name }}</div>
-            <div class="text-caption text-medium-emphasis">
-              {{ currentSpool.material?.toUpperCase() ?? '' }} · {{ currentSpool.colorName }}
-            </div>
-            <div class="text-caption">
-              <span :class="remainingPct < 20 ? 'text-error' : ''">
-                {{ currentSpool.remainingWeightGrams ?? '?' }}g
-              </span>
-              <span class="text-medium-emphasis"> / {{ currentSpool.totalWeightGrams ?? '?' }}g</span>
-            </div>
-          </div>
-        </div>
-        <div v-else class="text-caption text-medium-emphasis">
-          No filament loaded
-        </div>
-      </v-card-text>
-    </v-card>
-
-    <!-- Load Spool Dialog -->
-    <v-dialog v-model="loadSpoolDialog" max-width="460">
-      <v-card>
-        <v-card-title class="pt-4 px-6">Load Spool — {{ storedSideNavPrinter?.name }}</v-card-title>
-        <v-card-text class="px-6 pb-0">
-          <!-- Preset picker -->
-          <v-select
-            v-model="selectedPresetId"
-            label="Load from preset (optional)"
-            :items="presetSelectItems"
-            item-title="label"
-            item-value="id"
-            clearable
-            hide-details
-            class="mb-4"
-            @update:model-value="applyPreset"
-          />
-          <v-divider class="mb-4" />
-
-          <v-text-field v-model="loadForm.name" label="Spool name / brand" required class="mb-1" />
-          <v-row>
-            <v-col cols="6">
-              <v-select
-                v-model="loadForm.material"
-                label="Material"
-                :items="['pla', 'petg', 'abs', 'tpu', 'asa', 'pa', 'pc', 'other']"
-              />
-            </v-col>
-            <v-col cols="6">
-              <v-text-field v-model="loadForm.colorName" label="Color (e.g. tan)" />
-            </v-col>
-          </v-row>
-          <div class="d-flex align-center ga-2 mb-1">
-            <div class="color-picker-wrapper">
-              <div class="color-picker-btn" :style="{ backgroundColor: loadForm.colorHex || '#aaaaaa' }" />
-              <input
-                type="color"
-                :value="loadForm.colorHex || '#aaaaaa'"
-                class="color-picker-input"
-                @input="(e) => loadForm.colorHex = (e.target as HTMLInputElement).value"
-              />
-            </div>
-            <v-text-field v-model="loadForm.colorHex" label="Color hex (e.g. #C4A35A)" hide-details density="compact" />
-          </div>
-          <v-text-field
-            v-model.number="loadForm.weightGrams"
-            label="Starting weight (g)"
-            type="number"
-          />
-
-          <v-checkbox
-            v-model="saveAsPreset"
-            label="Save as preset"
-            hide-details
-            density="compact"
-            class="mb-2"
-          />
-        </v-card-text>
-        <v-card-actions class="px-6 pb-4">
-          <v-spacer />
-          <v-btn variant="text" @click="loadSpoolDialog = false">Cancel</v-btn>
-          <v-btn
-            color="primary"
-            :loading="filamentSaving"
-            :disabled="!loadForm.name || !loadForm.material || !loadForm.colorName"
-            @click="doLoadSpool"
-          >
-            Load
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <!-- Print Controls -->
-    <v-card
-      v-if="isPrinting || isStoppable || isPaused"
-      class="ma-3 mb-4"
-      elevation="1"
-      rounded="lg"
-    >
-      <v-card-title class="text-subtitle-1 py-3">
-        Print Controls
-      </v-card-title>
-
-      <v-card-text class="pt-0">
-        <div class="d-flex flex-wrap ga-2">
-          <v-btn
-            v-if="isPrinting || isPaused"
-            :disabled="!isOnline"
-            :color="isPaused ? 'success' : 'warning'"
-            size="small"
-            variant="outlined"
-            @click="isPaused ? clickResumePrint() : clickPausePrint()"
-          >
-            <v-icon start>{{ isPaused ? 'play_arrow' : 'pause' }}</v-icon>
-            {{ isPaused ? 'Resume' : 'Pause' }}
-          </v-btn>
-
-          <v-btn
-            v-if="isStoppable"
-            color="error"
-            size="small"
-            variant="outlined"
-            @click="clickStopPrint()"
-          >
-            <v-icon start>stop</v-icon>
-            Cancel Print
-          </v-btn>
-        </div>
-      </v-card-text>
-    </v-card>
-
-    <!-- Files Section -->
-    <v-card
-      class="ma-3 flex-grow-1 d-flex flex-column files-card"
-      elevation="0"
-      rounded="lg"
-      style="min-height: 0;"
-    >
-      <v-card-title class="d-flex align-center py-3">
-        <span class="text-subtitle-1">Files</span>
-        <v-spacer />
-        <v-btn
-          icon="refresh"
-          size="small"
-          variant="text"
-          @click="refreshFiles()"
-        />
-      </v-card-title>
+      </div>
 
       <v-divider />
 
-      <v-card-text class="pt-3 pb-0 flex-grow-1 d-flex flex-column" style="min-height: 0;">
-        <!-- Breadcrumb Navigation -->
-        <div class="breadcrumb-container mb-3 d-flex align-center flex-shrink-0">
-          <v-btn
-            size="x-small"
-            variant="text"
-            :disabled="breadcrumbParts.length === 0"
-            @click="fileExplorer.setCurrentPath(''); refreshFiles()"
-          >
-            <v-icon start>home</v-icon>
-            Root
-          </v-btn>
-          <template
-            v-for="(part, index) in breadcrumbParts"
-            :key="index"
-          >
-            <v-icon
-              size="small"
-              class="mx-1"
-            >
-              chevron_right
-            </v-icon>
-            <v-btn
-              size="x-small"
-              variant="text"
-              @click="navigateToBreadcrumb(index)"
-            >
-              {{ part }}
-            </v-btn>
+      <!-- Collapsible camera banner -->
+      <v-expand-transition>
+        <div
+          v-if="cameraVisible && storedSideNavPrinter.streamURL"
+          class="camera-banner flex-shrink-0"
+        >
+          <img
+            v-show="!cameraError"
+            :src="storedSideNavPrinter.streamURL"
+            :style="cameraTransform ? { transform: cameraTransform } : {}"
+            alt="Camera stream"
+            class="camera-img"
+            @error="cameraError = true"
+            @load="cameraError = false"
+          />
+          <div v-show="cameraError" class="d-flex flex-column align-center justify-center pa-3 text-medium-emphasis">
+            <v-icon size="36" class="mb-1">videocam_off</v-icon>
+            <div class="text-caption">Stream unavailable</div>
+          </div>
+        </div>
+      </v-expand-transition>
+
+      <!-- Tab bar -->
+      <v-tabs
+        v-model="activeTab"
+        density="compact"
+        class="drawer-tabs flex-shrink-0"
+      >
+        <v-tooltip v-for="tab in drawerTabs" :key="tab.value" :text="tab.label" location="bottom">
+          <template #activator="{ props: tooltipProps }">
+            <v-tab v-bind="tooltipProps" :value="tab.value" class="drawer-icon-tab">
+              <v-icon size="20">{{ tab.icon }}</v-icon>
+            </v-tab>
           </template>
-        </div>
+        </v-tooltip>
+      </v-tabs>
 
-        <!-- Search Field -->
-        <v-text-field
-          v-model="fileSearch"
-          placeholder="Search files..."
-          prepend-inner-icon="search"
-          variant="outlined"
-          density="compact"
-          clearable
-          hide-details
-          class="mb-3 flex-shrink-0"
-        />
+      <v-divider />
 
-        <!-- File List -->
-        <div class="file-list flex-grow-1">
-          <!-- Loading State -->
-          <div
-            v-if="loading"
-            class="d-flex justify-center py-4"
-          >
-            <v-progress-circular
-              indeterminate
-              size="32"
-            />
-          </div>
+      <!-- Tab content (fills remaining height) -->
+      <div class="drawer-content">
+        <KeepAlive>
+          <component :is="activeTabComponent" :printer-id="printerId!" />
+        </KeepAlive>
+      </div>
 
-          <!-- Empty State -->
-          <div
-            v-else-if="!filesListed.length && !fileLoadError"
-            class="text-center py-6"
-          >
-            <v-icon
-              size="48"
-              color="medium-emphasis"
-              class="mb-2"
-            >
-              folder_open
-            </v-icon>
-            <div class="text-body-2 text-medium-emphasis">
-              No files found
-            </div>
-          </div>
-
-          <!-- File List (virtualized so an SD card with hundreds of gcodes
-               stays responsive and the inner scroll is contained) -->
-          <v-virtual-scroll
-            :items="fileTree"
-            item-height="48"
-            class="file-tree"
-          >
-            <template #default="{ item }">
-              <v-list-item
-                :key="item.id"
-                density="compact"
-                :class="{ 'cursor-pointer': item.type === 'folder' }"
-                @click="item.type === 'folder' ? navigateToDir(item.path) : undefined"
-              >
-                <template #prepend>
-                  <v-icon
-                    :color="item.type === 'file' && item.file && isFileBeingPrinted(item.file) ? 'primary' : 'medium-emphasis'"
-                  >
-                    {{ getTreeIcon(item) }}
-                  </v-icon>
-                </template>
-
-                <v-list-item-title>
-                  <div class="d-flex align-center">
-                    <span
-                      :class="{ 'text-primary font-weight-bold': item.type === 'file' && item.file && isFileBeingPrinted(item.file) }"
-                      class="text-body-2"
-                      :title="item.path"
-                    >
-                      {{ item.name }}
-                    </span>
-                    <span
-                      v-if="item.type === 'file' && item.file"
-                      class="text-caption text-medium-emphasis ml-2"
-                    >
-                      {{ formatFileSize(item.file.size ?? undefined) }}
-                    </span>
-                  </div>
-                </v-list-item-title>
-
-                <template #append>
-                  <div
-                    v-if="item.type === 'file' && item.file"
-                    class="d-flex ga-1"
-                    @click.stop
-                  >
-                    <v-btn
-                      icon="download"
-                      size="x-small"
-                      variant="text"
-                      @click="clickDownloadFile(item.file.path)"
-                    />
-                    <v-btn
-                      :disabled="isFileBeingPrinted(item.file)"
-                      icon="play_arrow"
-                      size="x-small"
-                      variant="text"
-                      color="success"
-                      @click="clickPrintFile(item.file)"
-                    />
-                    <v-btn
-                      :disabled="isFileBeingPrinted(item.file)"
-                      icon="delete"
-                      size="x-small"
-                      variant="text"
-                      color="error"
-                      @click="deleteFile(item.file)"
-                    />
-                  </div>
-                </template>
-              </v-list-item>
-            </template>
-          </v-virtual-scroll>
-        </div>
-      </v-card-text>
-    </v-card>
-
+    </template>
   </v-navigation-drawer>
 </template>
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue'
 import { generateInitials } from '@/shared/noun-adjectives.data'
-import { PrinterRemoteFileService, PrintersService } from '@/backend'
-import { PrinterMaintenanceLogService } from '@/backend/printer-maintenance-log.service'
-import { FilamentService, type FilamentSpool, type FilamentPreset } from '@/backend/filament.service'
-import { useFilamentStore } from '@/store/filament.store'
-import { FileDto } from '@/models/printers/printer-file.model'
-import { formatFileSize } from '@/utils/file-size.util'
+import { PrintersService } from '@/backend'
 import { usePrinterStore } from '@/store/printer.store'
-import { DialogName } from './Dialogs/dialog.constants'
 import { usePrinterStateStore } from '@/store/printer-state.store'
-import {
-  getPrinterTypeName,
-} from "@/shared/printer-types.constants";
+import { getPrinterTypeName } from '@/shared/printer-types.constants'
 import { hasWebInterface } from '@/shared/printer-capabilities.constants'
-import { useDialog } from '@/shared/dialog.composable'
 import { useFileExplorer } from '@/shared/file-explorer.composable'
-
-interface TreeNode {
-  id: string
-  name: string
-  type: 'file' | 'folder'
-  path: string
-  file?: FileDto
-  children?: TreeNode[]
-}
+import { useCameraSettings } from '@/shared/camera-settings.composable'
+import DrawerOverviewTab from './DrawerTabs/DrawerOverviewTab.vue'
+import DrawerFilesTab from './DrawerTabs/DrawerFilesTab.vue'
+import DrawerControlsTab from './DrawerTabs/DrawerControlsTab.vue'
+import DrawerSettingsTab from './DrawerTabs/DrawerSettingsTab.vue'
+import DrawerHistoryTab from './DrawerTabs/DrawerHistoryTab.vue'
 
 const printersStore = usePrinterStore()
 const printerStateStore = usePrinterStateStore()
-const filamentStore = useFilamentStore()
 const fileExplorer = useFileExplorer()
 
-const fileSearch = ref<string | undefined>(undefined)
-const fileList = ref<FileDto[] | undefined>(undefined)
 const drawerOpened = fileExplorer.isOpen
-const loading = fileExplorer.loading
-const fileLoadError = fileExplorer.error
 const printerId = fileExplorer.currentPrinterId
-const currentPath = fileExplorer.currentPath
+
+const activeTab = ref<'overview' | 'files' | 'controls' | 'settings' | 'history'>('overview')
+const cameraVisible = ref(true)
+const cameraError = ref(false)
+
+const drawerTabs = [
+  { value: 'overview', label: 'Overview', icon: 'mdi:mdi-home' },
+  { value: 'files',    label: 'Files',    icon: 'mdi:mdi-folder' },
+  { value: 'controls', label: 'Controls', icon: 'mdi:mdi-gamepad-variant' },
+  { value: 'settings', label: 'Settings', icon: 'mdi:mdi-cog-outline' },
+  { value: 'history',  label: 'History',  icon: 'mdi:mdi-history' },
+]
+
+const cameraTransform = computed(() => {
+  if (!printerId.value) return ''
+  return useCameraSettings(printerId.value).cameraTransform.value
+})
+
+const tabComponents = {
+  overview: DrawerOverviewTab,
+  files: DrawerFilesTab,
+  controls: DrawerControlsTab,
+  settings: DrawerSettingsTab,
+  history: DrawerHistoryTab,
+}
+
+const activeTabComponent = computed(() => tabComponents[activeTab.value])
 
 const storedSideNavPrinter = computed(() => {
   if (!printerId.value) return undefined
   return printersStore.printer(printerId.value)
 })
+
+const serviceName = computed(() => getPrinterTypeName(storedSideNavPrinter.value?.printerType))
+
 const isOnline = computed(() =>
   printerId.value ? printerStateStore.isApiResponding(printerId.value) : false
 )
-
-const serviceName = computed(() =>
-  getPrinterTypeName(storedSideNavPrinter.value?.printerType)
-)
-
 const isOperational = computed(() =>
-  printerId.value
-    ? printerStateStore.isPrinterOperational(printerId.value)
-    : false
+  printerId.value ? printerStateStore.isPrinterOperational(printerId.value) : false
 )
-const isEnabled = computed(() => {
-  return storedSideNavPrinter.value?.enabled
-})
-const isUnderMaintenance = computed(() => {
-  return !!storedSideNavPrinter.value?.disabledReason?.length
-})
-const isPrinting = computed(() => {
-  return printerId.value
-    ? printerStateStore.isPrinterPrinting(printerId.value)
-    : false
-})
-const filesListed = computed(() => {
-  if (!fileList.value?.length) return []
-  return (
-    fileList.value.filter((f) =>
-      fileSearch.value?.length
-        ? `${f.path}`.toLowerCase().includes(fileSearch.value)
-        : true
-    ) || []
-  )
-})
-
-const fileTree = computed(() => {
-  const items: TreeNode[] = []
-
-  filesListed.value.forEach((file) => {
-    const node: TreeNode = {
-      id: file.path,
-      name: file.path.split('/').pop() || file.path,
-      type: file.dir ? 'folder' : 'file',
-      path: file.path,
-      file: file.dir ? undefined : file
-    }
-    items.push(node)
-  })
-
-  // Sort: folders first, then alphabetically
-  items.sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1
-    return a.name.localeCompare(b.name)
-  })
-
-  return items
-})
-const isStoppable = computed(() => {
-  if (!storedSideNavPrinter.value || !printerId.value) return false
-  return printerStateStore.isPrinterStoppable(printerId.value)
-})
-const isPaused = computed(() => {
-  if (!storedSideNavPrinter.value || !printerId.value) return false
-  return printerStateStore.isPrinterPaused(printerId.value)
-})
-const currentJob = computed(() => {
-  if (!printerId.value) {
-    throw new Error('Printer ID not set, cannot get current job')
-  }
-  return printerStateStore.printerJobsById[printerId.value]
-})
-const currentPrintingFilePath = computed(() => {
-  if (!printerId.value) {
-    throw new Error('Printer ID not set, cannot get current printing file name')
-  }
-  return printerStateStore.printingFilePathsByPrinterId[printerId.value]
-})
-// ── Filament state ─────────────────────────────────────────────────────────
-const currentSpool = ref<FilamentSpool | null>(null)
-const presets = ref<FilamentPreset[]>([])
-const filamentLoading = ref(false)
-const filamentSaving = ref(false)
-const loadSpoolDialog = ref(false)
-const selectedPresetId = ref<number | null>(null)
-const saveAsPreset = ref(false)
-
-const emptyLoadForm = () => ({ name: '', material: 'pla', colorName: '', colorHex: '', weightGrams: 1000 })
-const loadForm = ref(emptyLoadForm())
-
-const remainingPct = computed(() => {
-  if (!currentSpool.value?.remainingWeightGrams || !currentSpool.value?.totalWeightGrams) return 100
-  return (currentSpool.value.remainingWeightGrams / currentSpool.value.totalWeightGrams) * 100
-})
-
-const presetSelectItems = computed(() =>
-  presets.value.map((p) => ({
-    id: p.id,
-    label: `${p.name} — ${p.material.toUpperCase()} ${p.colorName}`,
-  }))
+const isEnabled = computed(() => storedSideNavPrinter.value?.enabled)
+const isPrinting = computed(() =>
+  printerId.value ? printerStateStore.isPrinterPrinting(printerId.value) : false
+)
+const isPaused = computed(() =>
+  printerId.value ? printerStateStore.isPrinterPaused(printerId.value) : false
 )
 
-async function fetchCurrentSpool() {
-  if (!printerId.value) return
-  filamentLoading.value = true
-  try {
-    const assignment = await FilamentService.getCurrentAssignment(printerId.value)
-    currentSpool.value = assignment?.spool ?? null
-  } finally {
-    filamentLoading.value = false
-  }
-}
-
-async function openLoadSpoolDialog() {
-  loadForm.value = emptyLoadForm()
-  selectedPresetId.value = null
-  saveAsPreset.value = false
-  presets.value = await FilamentService.listPresets()
-  loadSpoolDialog.value = true
-}
-
-function applyPreset(presetId: number | null) {
-  if (!presetId) return
-  const preset = presets.value.find((p) => p.id === presetId)
-  if (!preset) return
-  loadForm.value = {
-    name: preset.name,
-    material: preset.material,
-    colorName: preset.colorName,
-    colorHex: preset.colorHex ?? '',
-    weightGrams: preset.defaultWeightGrams ?? 1000,
-  }
-}
-
-async function doLoadSpool() {
-  if (!printerId.value) return
-  filamentSaving.value = true
-  try {
-    if (saveAsPreset.value) {
-      await FilamentService.createPreset({
-        name: loadForm.value.name,
-        brand: null,
-        material: loadForm.value.material,
-        colorName: loadForm.value.colorName,
-        colorHex: loadForm.value.colorHex || null,
-        defaultWeightGrams: loadForm.value.weightGrams,
-      })
-    }
-    const assignment = await FilamentService.loadSpool(printerId.value, {
-      name: loadForm.value.name,
-      material: loadForm.value.material,
-      colorName: loadForm.value.colorName,
-      colorHex: loadForm.value.colorHex || null,
-      weightGrams: loadForm.value.weightGrams,
-    })
-    currentSpool.value = assignment.spool ?? null
-    filamentStore.setSpoolForPrinter(printerId.value, assignment.spool ?? null)
-    loadSpoolDialog.value = false
-  } finally {
-    filamentSaving.value = false
-  }
-}
-
-async function doUnloadSpool() {
-  if (!printerId.value) return
-  filamentSaving.value = true
-  try {
-    await FilamentService.unassignSpool(printerId.value)
-    currentSpool.value = null
-    filamentStore.setSpoolForPrinter(printerId.value, null)
-  } finally {
-    filamentSaving.value = false
-  }
-}
-
-const refreshFiles = async () => {
-  fileExplorer.setLoading(true)
-  fileExplorer.setError(false)
-  const currentPrinterId = printerId.value
-  if (!currentPrinterId) return
-  try {
-    const startDir = currentPath.value || undefined
-    fileList.value = await printersStore.loadPrinterFiles(currentPrinterId, false, startDir)
-  } catch (error) {
-    console.warn('Failed to load printer files:', error)
-    fileExplorer.setError(true)
-    fileList.value = []
-  } finally {
-    fileExplorer.setLoading(false)
-  }
-}
-
-const navigateToDir = async (dirPath: string) => {
-  fileExplorer.setCurrentPath(dirPath)
-  await refreshFiles()
-}
-
-const navigateToBreadcrumb = async (index: number) => {
-  const pathParts = currentPath.value.split('/').filter(p => p.length > 0)
-  const newPath = pathParts.slice(0, index + 1).join('/')
-  fileExplorer.setCurrentPath(newPath)
-  await refreshFiles()
-}
-
-const breadcrumbParts = computed(() => {
-  if (!currentPath.value) return []
-  return currentPath.value.split('/').filter(p => p.length > 0)
-})
-const deleteFile = async (file: FileDto) => {
-  if (!printerId.value) return
-  await printersStore.deletePrinterFile(printerId.value, file.path)
-}
-
-watch(printerId, async (newPrinterId, oldPrinterId) => {
-  if (newPrinterId && newPrinterId !== oldPrinterId) {
-    await Promise.all([refreshFiles(), fetchCurrentSpool()])
-  } else if (!newPrinterId) {
-    fileList.value = undefined
-    currentSpool.value = null
-  }
+const statusColor = computed(() => {
+  if (!isEnabled.value) return 'error'
+  if (!isOnline.value) return 'warning'
+  if (isPrinting.value) return 'success'
+  if (isOperational.value) return 'primary'
+  return 'medium-emphasis'
 })
 
-function truncateProgress(progress?: number) {
-  if (!progress) return ''
-  return progress?.toFixed(1)
-}
+const statusIcon = computed(() => {
+  if (!isEnabled.value) return 'power_off'
+  if (!isOnline.value) return 'wifi_off'
+  if (isPrinting.value) return 'print'
+  if (isOperational.value) return 'check_circle'
+  return 'radio_button_unchecked'
+})
 
-function isFileBeingPrinted(file: FileDto) {
-  if (!printerId.value) {
-    return false
-  }
-  const jobFilePath =
-    printerStateStore.printingFilePathsByPrinterId[printerId.value]
-  return jobFilePath === file.path
-}
+const statusText = computed(() => {
+  if (!isEnabled.value) return 'Disabled'
+  if (!isOnline.value) return 'Offline'
+  if (isPrinting.value && isPaused.value) return 'Paused'
+  if (isPrinting.value) return 'Printing'
+  if (isOperational.value) return 'Ready'
+  return 'Idle'
+})
 
-function avatarInitials() {
-  const viewedPrinter = storedSideNavPrinter.value
-  if (viewedPrinter && drawerOpened.value) {
-    return generateInitials(viewedPrinter.name)
-  }
-}
+const avatarInitials = computed(() => {
+  const p = storedSideNavPrinter.value
+  return p ? generateInitials(p.name) : ''
+})
+
+const hasWebInterfaceForPrinter = computed(
+  () => storedSideNavPrinter.value && hasWebInterface(storedSideNavPrinter.value.printerType)
+)
 
 function openPrinterURL() {
   if (!storedSideNavPrinter.value) return
@@ -842,125 +208,18 @@ function openPrinterURL() {
   closeDrawer()
 }
 
-async function togglePrinterConnection() {
-  if (!printerId.value) return
-  if (printerStateStore.isPrinterOperational(printerId.value)) {
-    return await PrintersService.sendPrinterDisconnectCommand(printerId.value)
-  }
-  await PrintersService.sendPrinterConnectCommand(printerId.value)
-}
-
-async function toggleEnabled() {
-  if (!printerId.value) {
-    throw new Error('Printer ID not set, cant toggle enabled')
-  }
-  if (!storedSideNavPrinter.value) {
-    throw new Error('Cant toggle enabled, sidenav printer unset')
-  }
-  const newSetting = !storedSideNavPrinter.value.enabled
-  await PrintersService.toggleEnabled(printerId.value, newSetting)
-}
-
-async function toggleMaintenance() {
-  if (!printerId.value) {
-    throw new Error('Printer ID not set, cant toggle maintenance')
-  }
-  if (!storedSideNavPrinter.value) {
-    throw new Error('Cant toggle enabled, sidenav printer unset')
-  }
-  if (isUnderMaintenance.value) {
-    const activeLog = await PrinterMaintenanceLogService.getActiveByPrinterId(printerId.value)
-    if (activeLog) {
-      await PrinterMaintenanceLogService.complete(activeLog.id, {})
-    }
-    return
-  }
-  await useDialog(DialogName.PrinterMaintenanceDialog).openDialog({ printerId: printerId.value })
-
-  closeDrawer()
-}
-
-async function refreshSocketState() {
-  if (!printerId.value) return
-
-  await PrintersService.refreshSocket(printerId.value)
-}
-
-async function clickStopPrint() {
-  if (!printerId.value) return
-  if (confirm('Are you sure to cancel the current print job?')) {
-    await PrintersService.stopPrintJob(printerId.value)
-  }
-}
-
-async function clickPausePrint() {
-  if (!printerId.value) return
-  await PrintersService.pausePrintJob(printerId.value)
-}
-
-async function clickResumePrint() {
-  if (!printerId.value) return
-  await PrintersService.resumePrintJob(printerId.value)
-}
-
-function clickSettings() {
-  if (!storedSideNavPrinter.value) return
-  useDialog(DialogName.AddOrUpdatePrinterDialog).openDialog({ id: storedSideNavPrinter.value.id })
-  closeDrawer()
-}
-
-async function clickPrintFile(file: FileDto) {
-  if (!printerId.value) return
-  await printerStateStore.selectAndPrintFile({
-    printerId: printerId.value,
-    fullPath: file.path
-  })
-}
-
-function clickDownloadFile(path: string) {
-  if (!printerId.value) return
-  PrinterRemoteFileService.downloadFile(printerId.value, path)
-}
-
 function closeDrawer() {
   fileExplorer.closeFileExplorer()
 }
 
-function getStatusColor() {
-  if (!isEnabled.value) return 'error'
-  if (!isOnline.value) return 'warning'
-  if (isPrinting.value) return 'success'
-  if (isOperational.value) return 'primary'
-  return 'medium-emphasis'
-}
-
-function getStatusIcon() {
-  if (!isEnabled.value) return 'power_off'
-  if (!isOnline.value) return 'wifi_off'
-  if (isPrinting.value) return 'print'
-  if (isOperational.value) return 'check_circle'
-  return 'radio_button_unchecked'
-}
-
-function getStatusText() {
-  if (!isEnabled.value) return 'Disabled'
-  if (!isOnline.value) return 'Offline'
-  if (isPrinting.value && isPaused.value) return 'Paused'
-  if (isPrinting.value) return 'Printing'
-  if (isOperational.value) return 'Ready'
-  return 'Idle'
-}
-
-function getTreeIcon(item: TreeNode) {
-  if (item.type === 'folder') {
-    return 'folder'
+watch(printerId, (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    cameraError.value = false
+    activeTab.value = 'overview'
   }
-  if (item.file && isFileBeingPrinted(item.file)) {
-    return 'play_circle'
-  }
-  return 'insert_drive_file'
-}
+})
 </script>
+
 <style scoped>
 .printer-side-nav {
   background: rgb(var(--v-theme-surface));
@@ -971,136 +230,45 @@ function getTreeIcon(item: TreeNode) {
   display: flex;
   flex-direction: column;
   height: 100%;
-  /* Override Vuetify's default overflow-y: auto on the drawer content. With
-     a long file list (e.g. an SD card with hundreds of gcodes), the default
-     would let the entire drawer scroll as one block, so the inner file-list
-     never gets to use its own overflow:auto. Constrain the drawer to its
-     viewport height and let .file-list scroll inside. */
   overflow: hidden;
 }
 
-.files-card {
+.camera-banner {
   overflow: hidden;
+  max-height: 220px;
+  background: #000;
 }
 
-.files-card :deep(.v-card-text) {
+.camera-img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  display: block;
+}
+
+.drawer-tabs {
+  flex-shrink: 0;
+}
+
+.drawer-icon-tab {
+  min-width: 0 !important;
+  flex: 1 1 0 !important;
+}
+
+.drawer-content {
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
-}
-
-/* Prevent search field from expanding */
-.files-card :deep(.v-text-field) {
-  flex: 0 0 auto !important;
-}
-
-/* Fixed height breadcrumb container */
-.breadcrumb-container {
-  min-height: 32px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-
-.breadcrumb-container::-webkit-scrollbar {
-  height: 4px;
-}
-
-.breadcrumb-container::-webkit-scrollbar-track {
-  background: rgba(var(--v-theme-on-surface), 0.05);
-  border-radius: 2px;
-}
-
-.breadcrumb-container::-webkit-scrollbar-thumb {
-  background: rgba(var(--v-theme-on-surface), 0.2);
-  border-radius: 2px;
-}
-
-.file-list {
-  /* v-virtual-scroll manages its own scrolling; we just need a bounded box. */
-  overflow: hidden;
-  flex: 1 1 0;
-  min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-.cursor-pointer {
-  cursor: pointer;
-}
-
-.filament-swatch {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  flex-shrink: 0;
-}
-
-.color-picker-wrapper {
-  position: relative;
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
-.color-picker-btn {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.25);
-}
-
-.color-picker-input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-  width: 100%;
-  height: 100%;
-  border: none;
-  padding: 0;
+.drawer-content > * {
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .min-width-0 {
   min-width: 0;
-}
-
-/* Ensure v-list fills the container */
-.file-tree {
-  height: 100%;
-}
-
-/* Scrollbar styling */
-.file-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.file-list::-webkit-scrollbar-track {
-  background: rgba(var(--v-theme-on-surface), 0.05);
-  border-radius: 2px;
-}
-
-.file-list::-webkit-scrollbar-thumb {
-  background: rgba(var(--v-theme-on-surface), 0.2);
-  border-radius: 2px;
-}
-
-.file-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--v-theme-on-surface), 0.3);
-}
-
-/* List view customization */
-.file-tree :deep(.v-list-item) {
-  transition: all 0.2s ease;
-}
-
-.file-tree :deep(.v-list-item:hover) {
-  background: rgba(var(--v-theme-on-surface), 0.05);
-}
-
-.file-tree :deep(.v-list-item__content) {
-  padding: 2px 4px;
 }
 </style>

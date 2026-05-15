@@ -17,6 +17,7 @@ export class PrintersService extends BaseService {
     newFormData.username = printer.username;
     newFormData.password = printer.password;
     newFormData.enabled = printer.enabled;
+    newFormData.streamURL = printer.streamURL ?? null;
     return newFormData;
   }
 
@@ -125,5 +126,17 @@ export class PrintersService extends BaseService {
     const path = ServerApi.printerEnabledRoute(printerId);
 
     return await this.patch(path, { enabled });
+  }
+
+  static async setFeedRate(printerId: number, feedRate: number) {
+    return await this.patch(ServerApi.printerFeedRateRoute(printerId), { feedRate })
+  }
+
+  static async setFlowRate(printerId: number, flowRate: number) {
+    return await this.patch(ServerApi.printerFlowRateRoute(printerId), { flowRate })
+  }
+
+  static async sendGcode(printerId: number, command: string) {
+    return await this.post(ServerApi.printerGcodeRoute(printerId), { command })
   }
 }
