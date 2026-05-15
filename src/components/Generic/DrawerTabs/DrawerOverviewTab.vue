@@ -6,7 +6,8 @@
       v-if="isPrinting || isStoppable || isPaused"
       elevation="3"
       rounded="lg"
-      color="surface-variant"
+      color="primary"
+      variant="tonal"
     >
       <v-card-text>
         <!-- Controls always first so they're visible without scrolling -->
@@ -165,15 +166,6 @@
           {{ isUnderMaintenance ? 'Update' : 'Maintenance' }}
         </v-btn>
 
-        <!-- Bed cleared chip shown only when bed IS cleared (card handles dirty state) -->
-        <v-chip
-          v-if="!bedLoading && bedCapability?.bedCleared"
-          color="success"
-          prepend-icon="mdi:mdi-check-circle"
-          size="small"
-        >
-          Bed Cleared{{ bedCapability?.hasAutoEject ? ' (auto)' : '' }}
-        </v-chip>
       </div>
     </div>
 
