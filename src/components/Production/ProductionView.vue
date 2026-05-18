@@ -550,12 +550,12 @@
 
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
+import { FilamentService } from '@/backend/filament.service'
 import {
   BuildOrderService,
   PrintPartService,
   PlannedPlateService,
   PrintProfileService,
-  FilamentProfileService,
   type BuildOrder,
   type BuildOrderStatus,
   type PrintPart,
@@ -884,7 +884,7 @@ async function fetchProfiles() {
   try {
     const [pp, fp] = await Promise.all([
       PrintProfileService.list(),
-      FilamentProfileService.list(),
+      FilamentService.listPresets(),
     ])
     printProfiles.value = pp
     filamentProfiles.value = fp
