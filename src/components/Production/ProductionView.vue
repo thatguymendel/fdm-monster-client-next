@@ -273,12 +273,17 @@
             :key="idx"
             class="d-flex ga-2 mb-2 align-center"
           >
-            <v-text-field
+            <v-autocomplete
               v-model="line.externalPartId"
-              label="Part ID"
+              label="Part"
+              :items="partAutocompleteItems"
+              item-title="label"
+              item-value="externalPartId"
               density="compact"
               hide-details
               style="flex: 2"
+              clearable
+              auto-select-first
             />
             <v-text-field
               v-model.number="line.quantity"
@@ -403,6 +408,30 @@
             density="compact"
             class="mb-1"
           />
+          <div class="d-flex align-center ga-2 mb-2">
+            <v-btn
+              variant="tonal"
+              size="small"
+              prepend-icon="mdi:mdi-paperclip"
+              :loading="uploadingStl"
+              @click="triggerStlUpload"
+            >
+              {{ partForm.stlFileStorageId ? 'Replace STL / GCode' : 'Upload STL / GCode' }}
+            </v-btn>
+            <span v-if="stlUploadName" class="text-body-2 text-truncate" style="max-width:200px">
+              {{ stlUploadName }}
+            </span>
+            <span v-else-if="partForm.stlFileStorageId" class="text-body-2 text-medium-emphasis">
+              (file on server)
+            </span>
+            <input
+              ref="stlFileInput"
+              type="file"
+              accept=".stl,.gcode,.3mf,.bgcode"
+              style="display:none"
+              @change="onStlFileSelected"
+            />
+          </div>
           <v-row>
             <v-col cols="6">
               <v-select
@@ -551,6 +580,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { FilamentService } from '@/backend/filament.service'
+import { FileStorageService } from '@/backend/file-storage.service'
 import {
   BuildOrderService,
   PrintPartService,
@@ -769,6 +799,7 @@ const editingPart = ref<PrintPart | null>(null)
 const partForm = ref<{
   externalPartId: string
   name: string
+  stlFileStorageId: string | null
   printProfileId: number | null
   filamentProfileId: number | null
   plateConstraint: PlateConstraint
@@ -777,6 +808,7 @@ const partForm = ref<{
 }>({
   externalPartId: '',
   name: '',
+  stlFileStorageId: null,
   printProfileId: null,
   filamentProfileId: null,
   plateConstraint: 'FLEXIBLE',
@@ -784,12 +816,42 @@ const partForm = ref<{
   estimatedPrintMinutes: null,
 })
 
+const stlFileInput = ref<HTMLInputElement | null>(null)
+const stlUploadName = ref<string | null>(null)
+const uploadingStl = ref(false)
+
+function triggerStlUpload() {
+  stlFileInput.value?.click()
+}
+
+async function onStlFileSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  uploadingStl.value = true
+  try {
+    const result = await FileStorageService.uploadFile(file)
+    partForm.value.stlFileStorageId = result.fileStorageId
+    stlUploadName.value = result.fileName
+  } catch (err: any) {
+    notify(err?.response?.data?.error ?? 'Failed to upload file', 'error')
+  } finally {
+    uploadingStl.value = false
+    if (stlFileInput.value) stlFileInput.value.value = ''
+  }
+}
+
+const partAutocompleteItems = computed(() =>
+  parts.value.map(p => ({ externalPartId: p.externalPartId, label: `${p.name} — ${p.externalPartId}` }))
+)
+
 function openPartDialog(part?: PrintPart) {
   editingPart.value = part ?? null
+  stlUploadName.value = null
   partForm.value = part
     ? {
         externalPartId: part.externalPartId,
         name: part.name,
+        stlFileStorageId: part.stlFileStorageId,
         printProfileId: part.printProfileId,
         filamentProfileId: part.filamentProfileId,
         plateConstraint: part.plateConstraint,
@@ -799,6 +861,7 @@ function openPartDialog(part?: PrintPart) {
     : {
         externalPartId: '',
         name: '',
+        stlFileStorageId: null,
         printProfileId: null,
         filamentProfileId: null,
         plateConstraint: 'FLEXIBLE',
@@ -814,6 +877,7 @@ async function submitPart() {
     if (editingPart.value) {
       const updated = await PrintPartService.update(editingPart.value.id, {
         name: partForm.value.name,
+        stlFileStorageId: partForm.value.stlFileStorageId,
         printProfileId: partForm.value.printProfileId,
         filamentProfileId: partForm.value.filamentProfileId,
         plateConstraint: partForm.value.plateConstraint,
@@ -827,6 +891,7 @@ async function submitPart() {
       const created = await PrintPartService.create({
         externalPartId: partForm.value.externalPartId,
         name: partForm.value.name,
+        stlFileStorageId: partForm.value.stlFileStorageId,
         printProfileId: partForm.value.printProfileId,
         filamentProfileId: partForm.value.filamentProfileId,
         plateConstraint: partForm.value.plateConstraint,

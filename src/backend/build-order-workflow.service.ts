@@ -133,6 +133,8 @@ export interface PrintPart {
 export interface CreatePrintPartDto {
   externalPartId: string
   name: string
+  stlFileStorageId?: string | null
+  gcodeFileStorageId?: string | null
   printProfileId?: number | null
   filamentProfileId?: number | null
   plateConstraint?: PlateConstraint
