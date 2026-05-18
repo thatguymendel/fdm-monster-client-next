@@ -13,6 +13,9 @@ export const settingPage = {
   apiKeys: "apiKeys",
   debugSocket: "debugSocket",
   about: "about",
+  orcaSlicer: "orcaSlicer",
+  printProfiles: "printProfiles",
+  filamentProfiles: "filamentProfiles",
 } as const;
 
 export const settingsPage = {
@@ -98,6 +101,24 @@ export const settingsPage = {
     title: "About",
     icon: "info",
     path: "/settings/about",
+    divider: true,
+  },
+  [settingPage.orcaSlicer]: {
+    title: "OrcaSlicer",
+    icon: "mdi:mdi-printer-3d-nozzle",
+    path: "/settings/orca-slicer",
+    divider: false,
+  },
+  [settingPage.printProfiles]: {
+    title: "Print Profiles",
+    icon: "mdi:mdi-layers",
+    path: "/settings/print-profiles",
+    divider: false,
+  },
+  [settingPage.filamentProfiles]: {
+    title: "Filament Profiles",
+    icon: "mdi:mdi-water",
+    path: "/settings/filament-profiles",
     divider: false,
   },
 } as const;

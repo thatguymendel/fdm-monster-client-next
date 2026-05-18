@@ -108,4 +108,28 @@ export class ServerApi {
     `${ServerApi.userRoute}/${id}/set-root-user`
   static readonly userSetUserRolesRoute = (id: number) =>
     `${ServerApi.userRoute}/${id}/set-user-roles`
+
+  // Build order workflow
+  static readonly printProfilesRoute = `${ServerApi.base}/print-profiles`
+  static readonly printProfileRoute = (id: number) => `${ServerApi.printProfilesRoute}/${id}`
+
+  static readonly filamentProfilesRoute = `${ServerApi.base}/filament-profiles`
+  static readonly filamentProfileRoute = (id: number) => `${ServerApi.filamentProfilesRoute}/${id}`
+
+  static readonly printPartsRoute = `${ServerApi.base}/print-parts`
+  static readonly printPartRoute = (id: number) => `${ServerApi.printPartsRoute}/${id}`
+  static readonly printPartsBulkRoute = `${ServerApi.printPartsRoute}/bulk`
+
+  static readonly buildOrdersRoute = `${ServerApi.base}/build-orders`
+  static readonly buildOrderRoute = (id: number) => `${ServerApi.buildOrdersRoute}/${id}`
+  static readonly buildOrderAcceptRoute = (id: number) => `${ServerApi.buildOrderRoute(id)}/accept`
+  static readonly buildOrderRejectRoute = (id: number) => `${ServerApi.buildOrderRoute(id)}/reject`
+
+  static readonly plannedPlatesRoute = `${ServerApi.base}/planned-plates`
+  static readonly plannedPlateRoute = (id: number) => `${ServerApi.plannedPlatesRoute}/${id}`
+  static readonly plannedPlateForceSliceRoute = (id: number) => `${ServerApi.plannedPlateRoute(id)}/force-slice`
+  static readonly plannedPlateCancelRoute = (id: number) => `${ServerApi.plannedPlateRoute(id)}/cancel`
+
+  static readonly slicerConfigRoute = `${ServerApi.base}/slicer-config`
+  static readonly slicerConfigTestRoute = `${ServerApi.slicerConfigRoute}/test`
 }

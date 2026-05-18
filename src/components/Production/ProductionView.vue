@@ -2,319 +2,454 @@
   <v-container fluid>
     <div class="d-flex align-center mb-4">
       <h1 class="text-h5">Production</h1>
-      <v-spacer />
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi:mdi-play"
-        :loading="triggering"
-        @click="triggerDispatch"
-      >
-        Trigger Dispatch
-      </v-btn>
     </div>
 
-    <!-- Dispatch status cards -->
-    <v-row class="mb-2">
-      <v-col cols="4">
-        <v-card variant="tonal" color="orange">
-          <v-card-text class="d-flex align-center justify-space-between">
-            <div>
-              <div class="text-caption text-uppercase">Queued</div>
-              <div class="text-h4 font-weight-bold">{{ dispatchStatus.queued }}</div>
-            </div>
-            <v-icon size="36">mdi:mdi-clock-outline</v-icon>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      <v-col cols="4">
-        <v-card variant="tonal" color="green">
-          <v-card-text class="d-flex align-center justify-space-between">
-            <div>
-              <div class="text-caption text-uppercase">Printing</div>
-              <div class="text-h4 font-weight-bold">{{ dispatchStatus.printing }}</div>
-            </div>
-            <v-icon size="36">mdi:mdi-printer</v-icon>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      <v-col cols="4">
-        <v-card variant="tonal" color="error">
-          <v-card-text class="d-flex align-center justify-space-between">
-            <div>
-              <div class="text-caption text-uppercase">Dispatch Failed</div>
-              <div class="text-h4 font-weight-bold">{{ dispatchStatus.dispatchFailed }}</div>
-            </div>
-            <v-icon size="36">mdi:mdi-alert-circle-outline</v-icon>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-
     <v-tabs v-model="tab" class="mb-4">
-      <v-tab value="requests">Build Requests</v-tab>
-      <v-tab value="skus">SKU Catalog</v-tab>
+      <v-tab value="orders">Build Orders</v-tab>
+      <v-tab value="parts">Part Catalog</v-tab>
+      <v-tab value="plates">Planned Plates</v-tab>
     </v-tabs>
 
     <v-window v-model="tab">
 
-      <!-- BUILD REQUESTS TAB -->
-      <v-window-item value="requests">
+      <!-- ─── BUILD ORDERS TAB ─────────────────────────────────────────────── -->
+      <v-window-item value="orders">
         <div class="d-flex align-center ga-2 mb-3">
           <v-btn color="primary" prepend-icon="mdi:mdi-plus" @click="openIntakeDialog">
-            New Request
+            New Order
           </v-btn>
           <v-select
-            v-model="statusFilter"
+            v-model="orderStatusFilter"
             label="Filter by status"
-            :items="statusFilterItems"
+            :items="orderStatusItems"
             density="compact"
-            style="max-width: 200px"
+            style="max-width: 220px"
             clearable
             hide-details
-            @update:model-value="fetchRequests"
+            @update:model-value="fetchOrders"
           />
-          <v-btn icon variant="text" :loading="loadingRequests" @click="fetchRequests">
+          <v-btn icon variant="text" :loading="loadingOrders" @click="fetchOrders">
             <v-icon>mdi:mdi-refresh</v-icon>
           </v-btn>
         </div>
 
         <v-data-table
-          :headers="requestHeaders"
-          :items="requests"
-          :loading="loadingRequests"
+          :headers="orderHeaders"
+          :items="orders"
+          :loading="loadingOrders"
           item-value="id"
           hover
         >
           <template #item.status="{ item }">
-            <v-tooltip v-if="item.statusReason" :text="item.statusReason" location="top">
-              <template #activator="{ props }">
-                <v-chip v-bind="props" :color="statusColor(item.status)" size="small">
-                  {{ item.status }}
-                  <v-icon end size="x-small">mdi:mdi-information-outline</v-icon>
-                </v-chip>
-              </template>
-            </v-tooltip>
-            <v-chip v-else :color="statusColor(item.status)" size="small">
+            <v-chip :color="orderStatusColor(item.status)" size="small" variant="tonal">
               {{ item.status }}
             </v-chip>
           </template>
 
-          <template #item.createdAt="{ item }">
-            {{ formatDate(item.createdAt) }}
+          <template #item.dynamicPriority="{ item }">
+            <v-progress-linear
+              :model-value="item.dynamicPriority"
+              :color="item.dynamicPriority >= 70 ? 'error' : item.dynamicPriority >= 30 ? 'warning' : 'success'"
+              rounded
+              height="10"
+              style="min-width: 80px"
+            />
+            <span class="text-caption ml-1">{{ Math.round(item.dynamicPriority) }}</span>
+          </template>
+
+          <template #item.requiredBy="{ item }">
+            {{ item.requiredBy ? new Date(item.requiredBy).toLocaleDateString() : '—' }}
+          </template>
+
+          <template #item.lines="{ item }">
+            {{ item.lines?.length ?? 0 }} line(s)
           </template>
 
           <template #item.actions="{ item }">
-            <v-btn
-              v-if="item.status === 'RECEIVED'"
-              size="small"
-              color="success"
-              variant="tonal"
-              class="mr-1"
-              :loading="actioning === item.id"
-              @click="acceptRequest(item)"
-            >
-              Accept
-            </v-btn>
-            <v-btn
-              v-if="item.status === 'RECEIVED'"
-              size="small"
-              color="error"
-              variant="tonal"
-              :loading="actioning === item.id"
-              @click="openRejectDialog(item)"
-            >
-              Reject
-            </v-btn>
-            <v-btn
-              v-if="item.status === 'QUEUED' || item.status === 'DISPATCH_FAILED'"
-              size="small"
-              color="primary"
-              variant="tonal"
-              :loading="actioning === item.id"
-              @click="dispatchRequest(item)"
-            >
-              Dispatch Now
-            </v-btn>
+            <div class="d-flex ga-1">
+              <v-btn
+                v-if="item.status === 'RECEIVED'"
+                size="small"
+                variant="tonal"
+                color="success"
+                @click="acceptOrder(item)"
+              >
+                Accept
+              </v-btn>
+              <v-btn
+                v-if="item.status === 'RECEIVED'"
+                size="small"
+                variant="tonal"
+                color="error"
+                @click="confirmRejectOrder(item)"
+              >
+                Reject
+              </v-btn>
+              <v-btn
+                icon
+                size="small"
+                variant="text"
+                @click="viewOrder(item)"
+              >
+                <v-icon>mdi:mdi-eye</v-icon>
+              </v-btn>
+            </div>
           </template>
         </v-data-table>
       </v-window-item>
 
-      <!-- SKU CATALOG TAB -->
-      <v-window-item value="skus">
-        <v-btn color="primary" prepend-icon="mdi:mdi-plus" class="mb-3" @click="openSkuDialog">
-          Add SKU
-        </v-btn>
+      <!-- ─── PART CATALOG TAB ─────────────────────────────────────────────── -->
+      <v-window-item value="parts">
+        <div class="d-flex align-center ga-2 mb-3">
+          <v-btn color="primary" prepend-icon="mdi:mdi-plus" @click="openPartDialog()">
+            Add Part
+          </v-btn>
+          <v-btn icon variant="text" :loading="loadingParts" @click="fetchParts">
+            <v-icon>mdi:mdi-refresh</v-icon>
+          </v-btn>
+        </div>
 
         <v-data-table
-          :headers="skuHeaders"
-          :items="skus"
-          :loading="loadingSkus"
+          :headers="partHeaders"
+          :items="parts"
+          :loading="loadingParts"
           item-value="id"
           hover
-          expand-on-click
         >
-          <template #item.active="{ item }">
-            <v-chip :color="item.active ? 'success' : 'grey'" size="small">
-              {{ item.active ? 'Active' : 'Inactive' }}
+          <template #item.plateConstraint="{ item }">
+            <v-chip
+              :color="constraintColor(item.plateConstraint)"
+              size="small"
+              variant="tonal"
+            >
+              {{ item.plateConstraint }}
             </v-chip>
           </template>
 
-          <template #item.parts="{ item }">
-            {{ item.parts?.length ?? 0 }} part(s)
+          <template #item.printProfile="{ item }">
+            {{ item.printProfile?.name ?? '—' }}
+          </template>
+
+          <template #item.filamentProfile="{ item }">
+            <div v-if="item.filamentProfile" class="d-flex align-center ga-1">
+              <div
+                v-if="item.filamentProfile.colorHex"
+                class="color-dot"
+                :style="{ backgroundColor: item.filamentProfile.colorHex }"
+              />
+              {{ item.filamentProfile.name }}
+            </div>
+            <span v-else>—</span>
+          </template>
+
+          <template #item.estimatedPrintMinutes="{ item }">
+            {{ item.estimatedPrintMinutes != null ? `${item.estimatedPrintMinutes} min` : '—' }}
           </template>
 
           <template #item.actions="{ item }">
-            <v-btn icon size="small" variant="text" @click.stop="openAddPartDialog(item)">
-              <v-tooltip activator="parent" location="top">Add Part</v-tooltip>
-              <v-icon>mdi:mdi-puzzle-plus</v-icon>
-            </v-btn>
-            <v-btn icon size="small" variant="text" color="error" @click.stop="confirmDeleteSku(item)">
-              <v-icon>mdi:mdi-delete</v-icon>
-            </v-btn>
+            <div class="d-flex ga-1">
+              <v-btn icon size="small" variant="text" @click="openPartDialog(item)">
+                <v-icon>mdi:mdi-pencil</v-icon>
+              </v-btn>
+              <v-btn icon size="small" variant="text" color="error" @click="confirmDeletePart(item)">
+                <v-icon>mdi:mdi-delete</v-icon>
+              </v-btn>
+            </div>
+          </template>
+        </v-data-table>
+      </v-window-item>
+
+      <!-- ─── PLANNED PLATES TAB ───────────────────────────────────────────── -->
+      <v-window-item value="plates">
+        <div class="d-flex align-center ga-2 mb-3">
+          <v-select
+            v-model="plateStatusFilter"
+            label="Filter by status"
+            :items="plateStatusItems"
+            density="compact"
+            style="max-width: 220px"
+            clearable
+            hide-details
+            @update:model-value="fetchPlates"
+          />
+          <v-btn icon variant="text" :loading="loadingPlates" @click="fetchPlates">
+            <v-icon>mdi:mdi-refresh</v-icon>
+          </v-btn>
+        </div>
+
+        <v-data-table
+          :headers="plateHeaders"
+          :items="plates"
+          :loading="loadingPlates"
+          item-value="id"
+          hover
+        >
+          <template #item.status="{ item }">
+            <v-chip :color="plateStatusColor(item.status)" size="small" variant="tonal">
+              {{ item.status }}
+            </v-chip>
           </template>
 
-          <template #expanded-row="{ item }">
-            <tr>
-              <td :colspan="skuHeaders.length" class="pa-3 bg-grey-lighten-5">
-                <div v-if="!item.parts?.length" class="text-grey text-caption">No parts yet</div>
-                <v-table v-else density="compact">
-                  <thead>
-                    <tr>
-                      <th>Part Name</th>
-                      <th>Material</th>
-                      <th>Color</th>
-                      <th>Nozzle</th>
-                      <th>Qty/Build</th>
-                      <th>Gcode</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="part in item.parts" :key="part.id">
-                      <td>{{ part.partName }}</td>
-                      <td>{{ part.requiredMaterial.toUpperCase() }}</td>
-                      <td>{{ part.requiredColorName }}</td>
-                      <td>{{ part.requiredNozzleMm ? `${part.requiredNozzleMm}mm` : 'Any' }}</td>
-                      <td>{{ part.quantityPerBuild }}</td>
-                      <td>
-                        <v-chip v-if="part.fileStorageId" color="success" size="x-small">Ready</v-chip>
-                        <v-chip v-else-if="part.stlFileStorageId" color="orange" size="x-small">STL only</v-chip>
-                        <v-chip v-else color="error" size="x-small">No file</v-chip>
-                      </td>
-                      <td class="d-flex align-center ga-1">
-                        <v-tooltip text="Upload gcode file" location="top">
-                          <template #activator="{ props }">
-                            <v-btn
-                              v-bind="props"
-                              icon
-                              size="x-small"
-                              variant="text"
-                              color="primary"
-                              :loading="uploadingPartId === part.id"
-                              @click="triggerGcodeUpload(item, part)"
-                            >
-                              <v-icon>mdi:mdi-upload</v-icon>
-                            </v-btn>
-                          </template>
-                        </v-tooltip>
-                        <v-btn icon size="x-small" variant="text" color="error" @click="deletePart(item, part)">
-                          <v-icon>mdi:mdi-delete</v-icon>
-                        </v-btn>
-                      </td>
-                    </tr>
-                  </tbody>
-                </v-table>
-              </td>
-            </tr>
+          <template #item.printProfile="{ item }">
+            {{ item.printProfile?.name ?? `Profile #${item.printProfileId}` }}
+          </template>
+
+          <template #item.filamentProfile="{ item }">
+            <div v-if="item.filamentProfile" class="d-flex align-center ga-1">
+              <div
+                v-if="item.filamentProfile.colorHex"
+                class="color-dot"
+                :style="{ backgroundColor: item.filamentProfile.colorHex }"
+              />
+              {{ item.filamentProfile.name }}
+            </div>
+            <span v-else>Profile #{{ item.filamentProfileId }}</span>
+          </template>
+
+          <template #item.items="{ item }">
+            {{ item.items?.length ?? 0 }} part(s)
+          </template>
+
+          <template #item.createdAt="{ item }">
+            {{ new Date(item.createdAt).toLocaleString() }}
+          </template>
+
+          <template #item.actions="{ item }">
+            <div class="d-flex ga-1">
+              <v-btn
+                v-if="item.status === 'PLANNING'"
+                size="small"
+                variant="tonal"
+                color="primary"
+                @click="forceSlicePlate(item)"
+              >
+                Force Slice
+              </v-btn>
+              <v-btn
+                v-if="!['PRINTING', 'DONE', 'CANCELLED'].includes(item.status)"
+                icon
+                size="small"
+                variant="text"
+                color="error"
+                @click="confirmCancelPlate(item)"
+              >
+                <v-icon>mdi:mdi-cancel</v-icon>
+              </v-btn>
+              <v-btn icon size="small" variant="text" @click="viewPlate(item)">
+                <v-icon>mdi:mdi-eye</v-icon>
+              </v-btn>
+            </div>
           </template>
         </v-data-table>
       </v-window-item>
     </v-window>
 
-    <!-- Intake Dialog -->
-    <v-dialog v-model="intakeDialog" max-width="480">
+    <!-- ─── INTAKE BUILD ORDER DIALOG ─────────────────────────────────────── -->
+    <v-dialog v-model="intakeDialog" max-width="680">
       <v-card>
-        <v-card-title class="pt-4 px-6">New Build Request</v-card-title>
+        <v-card-title class="pt-4 px-6">New Build Order</v-card-title>
         <v-card-text class="px-6">
-          <v-text-field v-model="intakeForm.externalSkuId" label="SKU ID (e.g. WIDGET-RED-LG)" required />
-          <v-text-field v-model="intakeForm.externalOrderId" label="Order ID (optional)" />
-          <v-text-field v-model.number="intakeForm.quantity" label="Quantity" type="number" required />
-          <v-text-field v-model.number="intakeForm.priority" label="Priority (0 = normal)" type="number" />
-          <v-text-field v-model="intakeForm.requestedBy" label="Requested By (optional)" />
+          <v-row>
+            <v-col cols="6">
+              <v-text-field
+                v-model="orderForm.externalOrderId"
+                label="External Order ID (optional)"
+                density="compact"
+              />
+            </v-col>
+            <v-col cols="6">
+              <v-text-field
+                v-model="orderForm.requiredBy"
+                label="Required by (date)"
+                type="date"
+                density="compact"
+              />
+            </v-col>
+          </v-row>
+
+          <div class="text-subtitle-2 mb-2 mt-2">Lines</div>
+          <div
+            v-for="(line, idx) in orderForm.lines"
+            :key="idx"
+            class="d-flex ga-2 mb-2 align-center"
+          >
+            <v-text-field
+              v-model="line.externalPartId"
+              label="Part ID"
+              density="compact"
+              hide-details
+              style="flex: 2"
+            />
+            <v-text-field
+              v-model.number="line.quantity"
+              label="Qty"
+              type="number"
+              density="compact"
+              hide-details
+              style="flex: 0 0 70px"
+            />
+            <v-text-field
+              v-model="line.assemblyGroup"
+              label="Assembly group"
+              density="compact"
+              hide-details
+              style="flex: 1"
+            />
+            <v-btn icon size="small" variant="text" color="error" @click="removeLine(idx)">
+              <v-icon>mdi:mdi-close</v-icon>
+            </v-btn>
+          </div>
+          <v-btn variant="text" prepend-icon="mdi:mdi-plus" size="small" @click="addLine">
+            Add line
+          </v-btn>
         </v-card-text>
         <v-card-actions class="px-6 pb-4">
           <v-spacer />
           <v-btn variant="text" @click="intakeDialog = false">Cancel</v-btn>
-          <v-btn color="primary" :loading="saving" @click="submitIntake">Submit</v-btn>
+          <v-btn
+            color="primary"
+            :loading="savingOrder"
+            :disabled="orderForm.lines.length === 0"
+            @click="submitOrder"
+          >
+            Submit
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
-    <!-- Reject Dialog -->
-    <v-dialog v-model="rejectDialog" max-width="400">
-      <v-card>
-        <v-card-title class="pt-4 px-6">Reject Request #{{ rejectingRequest?.id }}</v-card-title>
+    <!-- ─── VIEW ORDER DIALOG ──────────────────────────────────────────────── -->
+    <v-dialog v-model="viewOrderDialog" max-width="640">
+      <v-card v-if="selectedOrder">
+        <v-card-title class="pt-4 px-6 d-flex align-center">
+          Order #{{ selectedOrder.id }}
+          <v-chip class="ml-3" :color="orderStatusColor(selectedOrder.status)" size="small" variant="tonal">
+            {{ selectedOrder.status }}
+          </v-chip>
+        </v-card-title>
         <v-card-text class="px-6">
-          <v-text-field v-model="rejectReason" label="Reason" required />
+          <div class="text-body-2 mb-1" v-if="selectedOrder.externalOrderId">
+            External ID: <strong>{{ selectedOrder.externalOrderId }}</strong>
+          </div>
+          <div class="text-body-2 mb-1" v-if="selectedOrder.requiredBy">
+            Required by: <strong>{{ new Date(selectedOrder.requiredBy).toLocaleDateString() }}</strong>
+          </div>
+          <div class="text-body-2 mb-3">
+            Priority: <strong>{{ Math.round(selectedOrder.dynamicPriority) }}/100</strong>
+          </div>
+
+          <v-table density="compact">
+            <thead>
+              <tr>
+                <th>Part ID</th>
+                <th>Qty</th>
+                <th>Done</th>
+                <th>Assembly Group</th>
+                <th>Resolved</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="line in selectedOrder.lines" :key="line.id">
+                <td>{{ line.externalPartId }}</td>
+                <td>{{ line.quantity }}</td>
+                <td>{{ line.completedQuantity }}</td>
+                <td>{{ line.assemblyGroup ?? '—' }}</td>
+                <td>
+                  <v-icon :color="line.printPartId ? 'success' : 'error'" size="small">
+                    {{ line.printPartId ? 'check_circle' : 'cancel' }}
+                  </v-icon>
+                </td>
+              </tr>
+            </tbody>
+          </v-table>
         </v-card-text>
         <v-card-actions class="px-6 pb-4">
+          <v-spacer />
+          <v-btn variant="text" @click="viewOrderDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- ─── REJECT ORDER DIALOG ────────────────────────────────────────────── -->
+    <v-dialog v-model="rejectDialog" max-width="420">
+      <v-card>
+        <v-card-title>Reject Order?</v-card-title>
+        <v-card-text>
+          <v-text-field v-model="rejectReason" label="Reason (optional)" density="compact" />
+        </v-card-text>
+        <v-card-actions>
           <v-spacer />
           <v-btn variant="text" @click="rejectDialog = false">Cancel</v-btn>
-          <v-btn color="error" :loading="saving" @click="doReject">Reject</v-btn>
+          <v-btn color="error" @click="submitReject">Reject</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
-    <!-- Add SKU Dialog -->
-    <v-dialog v-model="skuDialog" max-width="480">
+    <!-- ─── ADD / EDIT PART DIALOG ─────────────────────────────────────────── -->
+    <v-dialog v-model="partDialog" max-width="520">
       <v-card>
-        <v-card-title class="pt-4 px-6">Add SKU</v-card-title>
+        <v-card-title class="pt-4 px-6">{{ editingPart ? 'Edit Part' : 'Add Part' }}</v-card-title>
         <v-card-text class="px-6">
-          <v-text-field v-model="skuForm.externalSkuId" label="External SKU ID (from Shopify)" required />
-          <v-text-field v-model="skuForm.name" label="Name" required />
-          <v-textarea v-model="skuForm.description" label="Description" rows="2" />
-          <v-checkbox v-model="skuForm.active" label="Active" />
-        </v-card-text>
-        <v-card-actions class="px-6 pb-4">
-          <v-spacer />
-          <v-btn variant="text" @click="skuDialog = false">Cancel</v-btn>
-          <v-btn color="primary" :loading="saving" @click="saveSku">Save</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <!-- Add Part Dialog -->
-    <v-dialog v-model="partDialog" max-width="480">
-      <v-card>
-        <v-card-title class="pt-4 px-6">Add Part to {{ addingPartToSku?.name }}</v-card-title>
-        <v-card-text class="px-6">
-          <v-text-field v-model="partForm.partName" label="Part Name" required />
+          <v-text-field
+            v-model="partForm.externalPartId"
+            label="External Part ID"
+            density="compact"
+            :disabled="!!editingPart"
+            class="mb-1"
+          />
+          <v-text-field
+            v-model="partForm.name"
+            label="Display Name"
+            density="compact"
+            class="mb-1"
+          />
           <v-row>
             <v-col cols="6">
               <v-select
-                v-model="partForm.requiredMaterial"
-                label="Material"
-                :items="['pla', 'petg', 'abs', 'tpu', 'asa', 'pa', 'pc']"
-              />
-            </v-col>
-            <v-col cols="6">
-              <v-text-field v-model="partForm.requiredColorName" label="Color Name (lowercase)" required />
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="6">
-              <v-text-field
-                v-model.number="partForm.requiredNozzleMm"
-                label="Nozzle (mm, blank = any)"
-                type="number"
+                v-model="partForm.printProfileId"
+                label="Print Profile"
+                :items="printProfileItems"
+                item-value="value"
+                item-title="title"
+                density="compact"
                 clearable
               />
             </v-col>
             <v-col cols="6">
+              <v-select
+                v-model="partForm.filamentProfileId"
+                label="Filament Profile"
+                :items="filamentProfileItems"
+                item-value="value"
+                item-title="title"
+                density="compact"
+                clearable
+              />
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="6">
+              <v-select
+                v-model="partForm.plateConstraint"
+                label="Plate Constraint"
+                :items="['REQUIRED', 'PREFERRED', 'FLEXIBLE']"
+                density="compact"
+              />
+            </v-col>
+            <v-col cols="3">
               <v-text-field
-                v-model.number="partForm.quantityPerBuild"
-                label="Qty per Build"
+                v-model.number="partForm.maxPerPlate"
+                label="Max / plate"
                 type="number"
+                density="compact"
+              />
+            </v-col>
+            <v-col cols="3">
+              <v-text-field
+                v-model.number="partForm.estimatedPrintMinutes"
+                label="Est. min"
+                type="number"
+                density="compact"
               />
             </v-col>
           </v-row>
@@ -322,346 +457,541 @@
         <v-card-actions class="px-6 pb-4">
           <v-spacer />
           <v-btn variant="text" @click="partDialog = false">Cancel</v-btn>
-          <v-btn color="primary" :loading="saving" @click="savePart">Save</v-btn>
+          <v-btn
+            color="primary"
+            :loading="savingPart"
+            :disabled="!partForm.externalPartId || !partForm.name"
+            @click="submitPart"
+          >
+            Save
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
-    <input
-      ref="gcodeFileInput"
-      type="file"
-      accept=".gcode,.gco,.g,.bgcode,.3mf"
-      style="display:none"
-      @change="onGcodeFileSelected"
-    />
+    <!-- ─── DELETE PART CONFIRM ────────────────────────────────────────────── -->
+    <v-dialog v-model="deletePartDialog" max-width="420">
+      <v-card>
+        <v-card-title>Delete Part?</v-card-title>
+        <v-card-text>
+          Delete <strong>{{ deletingPart?.externalPartId }}</strong>? This cannot be undone.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="deletePartDialog = false">Cancel</v-btn>
+          <v-btn color="error" :loading="deletingPartLoading" @click="submitDeletePart">Delete</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
+    <!-- ─── VIEW PLATE DIALOG ──────────────────────────────────────────────── -->
+    <v-dialog v-model="viewPlateDialog" max-width="600">
+      <v-card v-if="selectedPlate">
+        <v-card-title class="pt-4 px-6 d-flex align-center">
+          Plate #{{ selectedPlate.id }}
+          <v-chip class="ml-3" :color="plateStatusColor(selectedPlate.status)" size="small" variant="tonal">
+            {{ selectedPlate.status }}
+          </v-chip>
+        </v-card-title>
+        <v-card-text class="px-6">
+          <div class="text-body-2 mb-1">
+            Profile: <strong>{{ selectedPlate.printProfile?.name ?? `#${selectedPlate.printProfileId}` }}</strong>
+          </div>
+          <div class="text-body-2 mb-1">
+            Filament: <strong>{{ selectedPlate.filamentProfile?.name ?? `#${selectedPlate.filamentProfileId}` }}</strong>
+          </div>
+          <div class="text-body-2 mb-3">
+            Created: <strong>{{ new Date(selectedPlate.createdAt).toLocaleString() }}</strong>
+          </div>
+
+          <v-table density="compact">
+            <thead>
+              <tr>
+                <th>Part</th>
+                <th>Qty</th>
+                <th>Set</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in selectedPlate.items" :key="item.id">
+                <td>{{ item.printPart?.externalPartId ?? `Part #${item.printPartId}` }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.setIndex != null ? item.setIndex : '—' }}</td>
+              </tr>
+            </tbody>
+          </v-table>
+        </v-card-text>
+        <v-card-actions class="px-6 pb-4">
+          <v-spacer />
+          <v-btn variant="text" @click="viewPlateDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- ─── CANCEL PLATE CONFIRM ───────────────────────────────────────────── -->
+    <v-dialog v-model="cancelPlateDialog" max-width="420">
+      <v-card>
+        <v-card-title>Cancel Plate?</v-card-title>
+        <v-card-text>Cancel Plate #{{ cancellingPlate?.id }}?</v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="cancelPlateDialog = false">Cancel</v-btn>
+          <v-btn color="error" @click="submitCancelPlate">Confirm</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- ─── SNACKBAR ───────────────────────────────────────────────────────── -->
     <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
-      {{ snackbarText }}
+      {{ snackbarMessage }}
     </v-snackbar>
   </v-container>
 </template>
 
-<script lang="ts" setup>
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
+<script setup lang="ts">
+import { onMounted, ref, computed } from 'vue'
 import {
-  BuildRequestService,
-  SkuService,
-  DispatchService,
-  type BuildRequest,
-  type Sku,
-  type SkuPart,
-  type DispatchStatus,
-} from '@/backend/production.service'
+  BuildOrderService,
+  PrintPartService,
+  PlannedPlateService,
+  PrintProfileService,
+  FilamentProfileService,
+  type BuildOrder,
+  type BuildOrderStatus,
+  type PrintPart,
+  type PlannedPlate,
+  type PlannedPlateStatus,
+  type PlateConstraint,
+  type CreateBuildOrderLineDto,
+} from '@/backend/build-order-workflow.service'
 
-// ── State ──────────────────────────────────────────────────────────────────
-const tab = ref('requests')
-const loadingRequests = ref(false)
-const loadingSkus = ref(false)
-const saving = ref(false)
-const triggering = ref(false)
-const actioning = ref<number | null>(null)
+// ─── Tab ─────────────────────────────────────────────────────────────────────
 
-const requests = ref<BuildRequest[]>([])
-const skus = ref<Sku[]>([])
-const dispatchStatus = ref<DispatchStatus>({ queued: 0, dispatchFailed: 0, printing: 0 })
-const statusFilter = ref<string | null>(null)
+const tab = ref('orders')
 
-const intakeDialog = ref(false)
-const rejectDialog = ref(false)
-const skuDialog = ref(false)
-const partDialog = ref(false)
-
-const rejectingRequest = ref<BuildRequest | null>(null)
-const rejectReason = ref('')
-const addingPartToSku = ref<Sku | null>(null)
-const uploadingPartId = ref<number | null>(null)
-const gcodeFileInput = ref<HTMLInputElement | null>(null)
-const uploadTarget = ref<{ sku: Sku; part: SkuPart } | null>(null)
+// ─── Snackbar ─────────────────────────────────────────────────────────────────
 
 const snackbar = ref(false)
-const snackbarText = ref('')
+const snackbarMessage = ref('')
 const snackbarColor = ref('success')
 
-const statusFilterItems = [
-  'RECEIVED', 'ACCEPTED', 'QUEUED', 'SLICING', 'PRINTING',
-  'COMPLETED', 'PARTIALLY_COMPLETED', 'REJECTED', 'DISPATCH_FAILED', 'SLICE_FAILED',
+function notify(msg: string, color = 'success') {
+  snackbarMessage.value = msg
+  snackbarColor.value = color
+  snackbar.value = true
+}
+
+// ─── Build Orders ─────────────────────────────────────────────────────────────
+
+const orders = ref<BuildOrder[]>([])
+const loadingOrders = ref(false)
+const orderStatusFilter = ref<BuildOrderStatus | undefined>(undefined)
+
+const orderStatusItems = [
+  'RECEIVED', 'ACCEPTED', 'PLANNING', 'IN_PROGRESS',
+  'COMPLETED', 'PARTIALLY_COMPLETED', 'REJECTED', 'FAILED',
 ]
 
-const intakeForm = ref({ externalSkuId: '', externalOrderId: '', quantity: 1, priority: 0, requestedBy: '' })
-const skuForm = ref({ externalSkuId: '', name: '', description: '', active: true })
-const partForm = ref({ partName: '', requiredMaterial: 'pla', requiredColorName: '', requiredNozzleMm: null as number | null, quantityPerBuild: 1 })
-
-// ── Table headers ──────────────────────────────────────────────────────────
-const requestHeaders = [
-  { title: 'ID', key: 'id', width: '60px' },
-  { title: 'Order ID', key: 'externalOrderId' },
-  { title: 'Qty', key: 'quantity', width: '60px' },
+const orderHeaders = [
+  { title: 'ID', key: 'id', width: 60 },
+  { title: 'External ID', key: 'externalOrderId' },
   { title: 'Status', key: 'status' },
-  { title: 'Priority', key: 'priority', width: '80px' },
-  { title: 'Created', key: 'createdAt' },
-  { title: '', key: 'actions', sortable: false, align: 'end' as const },
+  { title: 'Priority', key: 'dynamicPriority', width: 140 },
+  { title: 'Required By', key: 'requiredBy' },
+  { title: 'Lines', key: 'lines' },
+  { title: 'Actions', key: 'actions', sortable: false },
 ]
 
-const skuHeaders = [
-  { title: 'External SKU', key: 'externalSkuId' },
-  { title: 'Name', key: 'name' },
-  { title: 'Status', key: 'active' },
-  { title: 'Parts', key: 'parts', sortable: false },
-  { title: '', key: 'actions', sortable: false, align: 'end' as const },
-]
-
-// ── Fetch ──────────────────────────────────────────────────────────────────
-async function fetchRequests() {
-  loadingRequests.value = true
-  try {
-    requests.value = await BuildRequestService.list(0, 50, statusFilter.value ?? undefined)
-  } finally {
-    loadingRequests.value = false
-  }
-}
-
-async function fetchSkus() {
-  loadingSkus.value = true
-  try {
-    skus.value = await SkuService.list()
-  } finally {
-    loadingSkus.value = false
-  }
-}
-
-async function fetchDispatchStatus() {
-  try {
-    dispatchStatus.value = await DispatchService.getStatus()
-  } catch {
-    // non-critical
-  }
-}
-
-onMounted(() => {
-  fetchRequests()
-  fetchSkus()
-  fetchDispatchStatus()
-})
-
-// ── Build Request actions ──────────────────────────────────────────────────
-function openIntakeDialog() {
-  intakeForm.value = { externalSkuId: '', externalOrderId: '', quantity: 1, priority: 0, requestedBy: '' }
-  intakeDialog.value = true
-}
-
-async function submitIntake() {
-  saving.value = true
-  try {
-    await BuildRequestService.intake({
-      externalSkuId: intakeForm.value.externalSkuId,
-      externalOrderId: intakeForm.value.externalOrderId || null,
-      quantity: intakeForm.value.quantity,
-      priority: intakeForm.value.priority,
-      requestedBy: intakeForm.value.requestedBy || null,
-    })
-    notify('Build request created')
-    intakeDialog.value = false
-    await fetchRequests()
-  } catch {
-    notify('Failed to create request', 'error')
-  } finally {
-    saving.value = false
-  }
-}
-
-async function acceptRequest(req: BuildRequest) {
-  actioning.value = req.id
-  try {
-    await BuildRequestService.accept(req.id)
-    notify(`Request #${req.id} accepted`)
-    await fetchRequests()
-    await fetchDispatchStatus()
-  } catch (err) {
-    if (axios.isAxiosError(err) && err.response?.status === 422) {
-      const reason = err.response.data?.error ?? 'Request was rejected'
-      notify(`Rejected: ${reason}`, 'warning')
-    } else {
-      notify('Failed to accept request', 'error')
-    }
-    await fetchRequests()
-  } finally {
-    actioning.value = null
-  }
-}
-
-function openRejectDialog(req: BuildRequest) {
-  rejectingRequest.value = req
-  rejectReason.value = ''
-  rejectDialog.value = true
-}
-
-async function doReject() {
-  if (!rejectingRequest.value) return
-  saving.value = true
-  try {
-    await BuildRequestService.reject(rejectingRequest.value.id, rejectReason.value)
-    notify(`Request #${rejectingRequest.value.id} rejected`)
-    rejectDialog.value = false
-    await fetchRequests()
-  } catch {
-    notify('Failed to reject request', 'error')
-  } finally {
-    saving.value = false
-  }
-}
-
-async function dispatchRequest(req: BuildRequest) {
-  actioning.value = req.id
-  try {
-    await DispatchService.dispatchRequest(req.id)
-    notify(`Dispatching request #${req.id}`)
-    await fetchRequests()
-    await fetchDispatchStatus()
-  } catch {
-    notify('Dispatch failed', 'error')
-  } finally {
-    actioning.value = null
-  }
-}
-
-async function triggerDispatch() {
-  triggering.value = true
-  try {
-    await DispatchService.trigger()
-    notify('Dispatch cycle triggered')
-    await fetchDispatchStatus()
-    await fetchRequests()
-  } catch {
-    notify('Failed to trigger dispatch', 'error')
-  } finally {
-    triggering.value = false
-  }
-}
-
-// ── SKU actions ────────────────────────────────────────────────────────────
-function openSkuDialog() {
-  skuForm.value = { externalSkuId: '', name: '', description: '', active: true }
-  skuDialog.value = true
-}
-
-async function saveSku() {
-  saving.value = true
-  try {
-    await SkuService.create({
-      externalSkuId: skuForm.value.externalSkuId,
-      name: skuForm.value.name,
-      description: skuForm.value.description || null,
-      active: skuForm.value.active,
-    })
-    notify('SKU created')
-    skuDialog.value = false
-    await fetchSkus()
-  } catch {
-    notify('Failed to create SKU', 'error')
-  } finally {
-    saving.value = false
-  }
-}
-
-async function confirmDeleteSku(sku: Sku) {
-  if (!confirm(`Delete SKU "${sku.name}"?`)) return
-  try {
-    await SkuService.remove(sku.id)
-    notify('SKU deleted')
-    await fetchSkus()
-  } catch {
-    notify('Failed to delete SKU', 'error')
-  }
-}
-
-function openAddPartDialog(sku: Sku) {
-  addingPartToSku.value = sku
-  partForm.value = { partName: '', requiredMaterial: 'pla', requiredColorName: '', requiredNozzleMm: null, quantityPerBuild: 1 }
-  partDialog.value = true
-}
-
-async function savePart() {
-  if (!addingPartToSku.value) return
-  saving.value = true
-  try {
-    await SkuService.addPart(addingPartToSku.value.id, {
-      partName: partForm.value.partName,
-      requiredMaterial: partForm.value.requiredMaterial,
-      requiredColorName: partForm.value.requiredColorName,
-      requiredNozzleMm: partForm.value.requiredNozzleMm ?? undefined,
-      quantityPerBuild: partForm.value.quantityPerBuild,
-    })
-    notify('Part added')
-    partDialog.value = false
-    await fetchSkus()
-  } catch {
-    notify('Failed to add part', 'error')
-  } finally {
-    saving.value = false
-  }
-}
-
-async function deletePart(sku: Sku, part: SkuPart) {
-  if (!confirm(`Delete part "${part.partName}"?`)) return
-  try {
-    await SkuService.removePart(sku.id, part.id)
-    notify('Part deleted')
-    await fetchSkus()
-  } catch {
-    notify('Failed to delete part', 'error')
-  }
-}
-
-// ── Gcode upload ───────────────────────────────────────────────────────────
-function triggerGcodeUpload(sku: Sku, part: SkuPart) {
-  uploadTarget.value = { sku, part }
-  gcodeFileInput.value?.click()
-}
-
-async function onGcodeFileSelected(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file || !uploadTarget.value) return
-  const { sku, part } = uploadTarget.value
-  uploadingPartId.value = part.id
-  try {
-    await SkuService.uploadPartGcode(sku.id, part.id, file)
-    notify(`Gcode uploaded for "${part.partName}"`)
-    await fetchSkus()
-  } catch {
-    notify('Failed to upload gcode', 'error')
-  } finally {
-    uploadingPartId.value = null
-    input.value = ''
-    uploadTarget.value = null
-  }
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-function statusColor(status: string): string {
-  const map: Record<string, string> = {
+function orderStatusColor(status: BuildOrderStatus): string {
+  const map: Record<BuildOrderStatus, string> = {
     RECEIVED: 'blue',
-    ACCEPTED: 'cyan',
-    QUEUED: 'orange',
-    SLICING: 'purple',
-    PRINTING: 'green',
+    ACCEPTED: 'teal',
+    PLANNING: 'orange',
+    IN_PROGRESS: 'purple',
     COMPLETED: 'success',
     PARTIALLY_COMPLETED: 'warning',
-    REJECTED: 'grey',
-    DISPATCH_FAILED: 'error',
-    SLICE_FAILED: 'error',
+    REJECTED: 'error',
+    FAILED: 'error',
   }
   return map[status] ?? 'grey'
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString()
+async function fetchOrders() {
+  loadingOrders.value = true
+  try {
+    orders.value = await BuildOrderService.list(orderStatusFilter.value)
+  } catch (e) {
+    notify('Failed to load build orders', 'error')
+  } finally {
+    loadingOrders.value = false
+  }
 }
 
-function notify(text: string, color = 'success') {
-  snackbarText.value = text
-  snackbarColor.value = color
-  snackbar.value = true
+async function acceptOrder(order: BuildOrder) {
+  try {
+    const updated = await BuildOrderService.accept(order.id)
+    const idx = orders.value.findIndex(o => o.id === order.id)
+    if (idx !== -1) orders.value[idx] = updated
+    notify('Order accepted')
+  } catch (e: any) {
+    notify(e?.response?.data?.error ?? 'Failed to accept order', 'error')
+  }
 }
+
+const rejectDialog = ref(false)
+const rejectingOrder = ref<BuildOrder | null>(null)
+const rejectReason = ref('')
+
+function confirmRejectOrder(order: BuildOrder) {
+  rejectingOrder.value = order
+  rejectReason.value = ''
+  rejectDialog.value = true
+}
+
+async function submitReject() {
+  if (!rejectingOrder.value) return
+  try {
+    const updated = await BuildOrderService.reject(rejectingOrder.value.id, rejectReason.value || undefined)
+    const idx = orders.value.findIndex(o => o.id === rejectingOrder.value!.id)
+    if (idx !== -1) orders.value[idx] = updated
+    notify('Order rejected')
+  } catch (e: any) {
+    notify(e?.response?.data?.error ?? 'Failed to reject order', 'error')
+  } finally {
+    rejectDialog.value = false
+  }
+}
+
+const viewOrderDialog = ref(false)
+const selectedOrder = ref<BuildOrder | null>(null)
+
+function viewOrder(order: BuildOrder) {
+  selectedOrder.value = order
+  viewOrderDialog.value = true
+}
+
+// ─── Intake Dialog ────────────────────────────────────────────────────────────
+
+const intakeDialog = ref(false)
+const savingOrder = ref(false)
+
+interface OrderFormLine {
+  externalPartId: string
+  quantity: number
+  assemblyGroup: string
+}
+
+const orderForm = ref<{
+  externalOrderId: string
+  requiredBy: string
+  lines: OrderFormLine[]
+}>({
+  externalOrderId: '',
+  requiredBy: '',
+  lines: [],
+})
+
+function openIntakeDialog() {
+  orderForm.value = { externalOrderId: '', requiredBy: '', lines: [] }
+  addLine()
+  intakeDialog.value = true
+}
+
+function addLine() {
+  orderForm.value.lines.push({ externalPartId: '', quantity: 1, assemblyGroup: '' })
+}
+
+function removeLine(idx: number) {
+  orderForm.value.lines.splice(idx, 1)
+}
+
+async function submitOrder() {
+  savingOrder.value = true
+  try {
+    const lines: CreateBuildOrderLineDto[] = orderForm.value.lines
+      .filter(l => l.externalPartId.trim())
+      .map(l => ({
+        externalPartId: l.externalPartId.trim(),
+        quantity: l.quantity,
+        assemblyGroup: l.assemblyGroup.trim() || undefined,
+      }))
+
+    const order = await BuildOrderService.intake({
+      externalOrderId: orderForm.value.externalOrderId.trim() || undefined,
+      requiredBy: orderForm.value.requiredBy || undefined,
+      lines,
+    })
+    orders.value.unshift(order)
+    intakeDialog.value = false
+    notify('Build order created')
+  } catch (e: any) {
+    notify(e?.response?.data?.error ?? 'Failed to create order', 'error')
+  } finally {
+    savingOrder.value = false
+  }
+}
+
+// ─── Parts ────────────────────────────────────────────────────────────────────
+
+const parts = ref<PrintPart[]>([])
+const loadingParts = ref(false)
+
+const partHeaders = [
+  { title: 'ID', key: 'id', width: 60 },
+  { title: 'External Part ID', key: 'externalPartId' },
+  { title: 'Name', key: 'name' },
+  { title: 'Print Profile', key: 'printProfile' },
+  { title: 'Filament Profile', key: 'filamentProfile' },
+  { title: 'Constraint', key: 'plateConstraint' },
+  { title: 'Est. Time', key: 'estimatedPrintMinutes' },
+  { title: 'Actions', key: 'actions', sortable: false },
+]
+
+function constraintColor(c: PlateConstraint): string {
+  return c === 'REQUIRED' ? 'error' : c === 'PREFERRED' ? 'warning' : 'success'
+}
+
+async function fetchParts() {
+  loadingParts.value = true
+  try {
+    parts.value = await PrintPartService.list()
+  } catch (e) {
+    notify('Failed to load parts', 'error')
+  } finally {
+    loadingParts.value = false
+  }
+}
+
+const partDialog = ref(false)
+const savingPart = ref(false)
+const editingPart = ref<PrintPart | null>(null)
+
+const partForm = ref<{
+  externalPartId: string
+  name: string
+  printProfileId: number | null
+  filamentProfileId: number | null
+  plateConstraint: PlateConstraint
+  maxPerPlate: number
+  estimatedPrintMinutes: number | null
+}>({
+  externalPartId: '',
+  name: '',
+  printProfileId: null,
+  filamentProfileId: null,
+  plateConstraint: 'FLEXIBLE',
+  maxPerPlate: 4,
+  estimatedPrintMinutes: null,
+})
+
+function openPartDialog(part?: PrintPart) {
+  editingPart.value = part ?? null
+  partForm.value = part
+    ? {
+        externalPartId: part.externalPartId,
+        name: part.name,
+        printProfileId: part.printProfileId,
+        filamentProfileId: part.filamentProfileId,
+        plateConstraint: part.plateConstraint,
+        maxPerPlate: part.maxPerPlate,
+        estimatedPrintMinutes: part.estimatedPrintMinutes,
+      }
+    : {
+        externalPartId: '',
+        name: '',
+        printProfileId: null,
+        filamentProfileId: null,
+        plateConstraint: 'FLEXIBLE',
+        maxPerPlate: 4,
+        estimatedPrintMinutes: null,
+      }
+  partDialog.value = true
+}
+
+async function submitPart() {
+  savingPart.value = true
+  try {
+    if (editingPart.value) {
+      const updated = await PrintPartService.update(editingPart.value.id, {
+        name: partForm.value.name,
+        printProfileId: partForm.value.printProfileId,
+        filamentProfileId: partForm.value.filamentProfileId,
+        plateConstraint: partForm.value.plateConstraint,
+        maxPerPlate: partForm.value.maxPerPlate,
+        estimatedPrintMinutes: partForm.value.estimatedPrintMinutes,
+      })
+      const idx = parts.value.findIndex(p => p.id === editingPart.value!.id)
+      if (idx !== -1) parts.value[idx] = updated
+      notify('Part updated')
+    } else {
+      const created = await PrintPartService.create({
+        externalPartId: partForm.value.externalPartId,
+        name: partForm.value.name,
+        printProfileId: partForm.value.printProfileId,
+        filamentProfileId: partForm.value.filamentProfileId,
+        plateConstraint: partForm.value.plateConstraint,
+        maxPerPlate: partForm.value.maxPerPlate,
+        estimatedPrintMinutes: partForm.value.estimatedPrintMinutes,
+      })
+      parts.value.push(created)
+      notify('Part created')
+    }
+    partDialog.value = false
+  } catch (e: any) {
+    notify(e?.response?.data?.error ?? 'Failed to save part', 'error')
+  } finally {
+    savingPart.value = false
+  }
+}
+
+const deletePartDialog = ref(false)
+const deletingPart = ref<PrintPart | null>(null)
+const deletingPartLoading = ref(false)
+
+function confirmDeletePart(part: PrintPart) {
+  deletingPart.value = part
+  deletePartDialog.value = true
+}
+
+async function submitDeletePart() {
+  if (!deletingPart.value) return
+  deletingPartLoading.value = true
+  try {
+    await PrintPartService.remove(deletingPart.value.id)
+    parts.value = parts.value.filter(p => p.id !== deletingPart.value!.id)
+    notify('Part deleted')
+  } catch (e: any) {
+    notify(e?.response?.data?.error ?? 'Failed to delete part', 'error')
+  } finally {
+    deletingPartLoading.value = false
+    deletePartDialog.value = false
+  }
+}
+
+// ─── Profile dropdowns (for part form) ───────────────────────────────────────
+
+const printProfiles = ref<{ id: number; name: string }[]>([])
+const filamentProfiles = ref<{ id: number; name: string }[]>([])
+
+const printProfileItems = computed(() =>
+  printProfiles.value.map(p => ({ value: p.id, title: p.name }))
+)
+const filamentProfileItems = computed(() =>
+  filamentProfiles.value.map(p => ({ value: p.id, title: p.name }))
+)
+
+async function fetchProfiles() {
+  try {
+    const [pp, fp] = await Promise.all([
+      PrintProfileService.list(),
+      FilamentProfileService.list(),
+    ])
+    printProfiles.value = pp
+    filamentProfiles.value = fp
+  } catch (_) {
+    // non-critical
+  }
+}
+
+// ─── Planned Plates ───────────────────────────────────────────────────────────
+
+const plates = ref<PlannedPlate[]>([])
+const loadingPlates = ref(false)
+const plateStatusFilter = ref<PlannedPlateStatus | undefined>(undefined)
+
+const plateStatusItems = [
+  'PLANNING', 'READY_TO_SLICE', 'SLICING', 'SLICE_FAILED', 'QUEUED', 'PRINTING', 'DONE', 'CANCELLED',
+]
+
+const plateHeaders = [
+  { title: 'ID', key: 'id', width: 60 },
+  { title: 'Status', key: 'status' },
+  { title: 'Print Profile', key: 'printProfile' },
+  { title: 'Filament', key: 'filamentProfile' },
+  { title: 'Parts', key: 'items' },
+  { title: 'Created', key: 'createdAt' },
+  { title: 'Actions', key: 'actions', sortable: false },
+]
+
+function plateStatusColor(status: PlannedPlateStatus): string {
+  const map: Record<PlannedPlateStatus, string> = {
+    PLANNING: 'blue-grey',
+    READY_TO_SLICE: 'blue',
+    SLICING: 'orange',
+    SLICE_FAILED: 'error',
+    QUEUED: 'teal',
+    PRINTING: 'purple',
+    DONE: 'success',
+    CANCELLED: 'grey',
+  }
+  return map[status] ?? 'grey'
+}
+
+async function fetchPlates() {
+  loadingPlates.value = true
+  try {
+    plates.value = await PlannedPlateService.list(plateStatusFilter.value)
+  } catch (e) {
+    notify('Failed to load plates', 'error')
+  } finally {
+    loadingPlates.value = false
+  }
+}
+
+async function forceSlicePlate(plate: PlannedPlate) {
+  try {
+    const updated = await PlannedPlateService.forceSlice(plate.id)
+    const idx = plates.value.findIndex(p => p.id === plate.id)
+    if (idx !== -1) plates.value[idx] = updated
+    notify('Plate queued for slicing')
+  } catch (e: any) {
+    notify(e?.response?.data?.error ?? 'Failed to force-slice plate', 'error')
+  }
+}
+
+const viewPlateDialog = ref(false)
+const selectedPlate = ref<PlannedPlate | null>(null)
+
+function viewPlate(plate: PlannedPlate) {
+  selectedPlate.value = plate
+  viewPlateDialog.value = true
+}
+
+const cancelPlateDialog = ref(false)
+const cancellingPlate = ref<PlannedPlate | null>(null)
+
+function confirmCancelPlate(plate: PlannedPlate) {
+  cancellingPlate.value = plate
+  cancelPlateDialog.value = true
+}
+
+async function submitCancelPlate() {
+  if (!cancellingPlate.value) return
+  try {
+    const updated = await PlannedPlateService.cancel(cancellingPlate.value.id)
+    const idx = plates.value.findIndex(p => p.id === cancellingPlate.value!.id)
+    if (idx !== -1) plates.value[idx] = updated
+    notify('Plate cancelled')
+  } catch (e: any) {
+    notify(e?.response?.data?.error ?? 'Failed to cancel plate', 'error')
+  } finally {
+    cancelPlateDialog.value = false
+  }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+onMounted(async () => {
+  await Promise.all([fetchOrders(), fetchParts(), fetchPlates(), fetchProfiles()])
+})
 </script>
+
+<style scoped>
+.color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+</style>

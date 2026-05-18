@@ -13,7 +13,6 @@ import { RouteNames } from './route-names'
 import PermissionDenied from '../components/Login/PermissionDenied.vue'
 import LoginView from '../components/Login/LoginView.vue'
 import RegistrationView from '../components/Login/RegistrationView.vue'
-import CameraGridView from '../components/CameraGrid/CameraGridView.vue'
 import FirstTimeSetupView from '../components/FirstTimeSetup/FirstTimeSetupView.vue'
 import AccountSettings from '../components/Settings/AccountSettings.vue'
 import ServerProtectionSettings from '../components/Settings/ServerProtectionSettings.vue'
@@ -24,11 +23,15 @@ import MaintenanceLogsView from '../components/MaintenanceLogs/MaintenanceLogsVi
 import FilesView from '../components/Files/FilesView.vue'
 import ExperimentalSettings from '@/components/Settings/ExperimentalSettings.vue'
 import ProductionView from '@/components/Production/ProductionView.vue'
+import GlobalQueueView from '@/components/GlobalQueue/GlobalQueueView.vue'
 import SlicerSettings from '@/components/Settings/SlicerSettings.vue'
 import FilamentPresetsSettings from '@/components/Settings/FilamentPresetsSettings.vue'
 import ApiKeysSettings from '@/components/Settings/ApiKeysSettings.vue'
 import DebugSocketSettings from "@/components/Settings/DebugSocketSettings.vue";
 import AboutSettings from "@/components/Settings/AboutSettings.vue";
+import OrcaSlicerSettings from "@/components/Settings/OrcaSlicerSettings.vue";
+import PrintProfilesSettings from "@/components/Settings/PrintProfilesSettings.vue";
+import FilamentProfilesSettings from "@/components/Settings/FilamentProfilesSettings.vue";
 
 const NeedsAuth = {
   requiresAuth: true
@@ -82,12 +85,6 @@ const router = createRouter({
       name: RouteNames.PrintersView,
       meta: NeedsAuth,
       component: PrintersView
-    },
-    {
-      path: '/cameras',
-      name: RouteNames.CameraGridView,
-      meta: NeedsAuth,
-      component: CameraGridView
     },
     {
       path: '/settings',
@@ -168,7 +165,22 @@ const router = createRouter({
           path: "about",
           meta: NeedsAuth,
           component: AboutSettings,
-        }
+        },
+        {
+          path: "orca-slicer",
+          meta: NeedsAuth,
+          component: OrcaSlicerSettings,
+        },
+        {
+          path: "print-profiles",
+          meta: NeedsAuth,
+          component: PrintProfilesSettings,
+        },
+        {
+          path: "filament-profiles",
+          meta: NeedsAuth,
+          component: FilamentProfilesSettings,
+        },
       ]
     },
     {
@@ -194,6 +206,12 @@ const router = createRouter({
       name: RouteNames.Production,
       meta: NeedsAuth,
       component: ProductionView
+    },
+    {
+      path: '/global-queue',
+      name: RouteNames.GlobalQueue,
+      meta: NeedsAuth,
+      component: GlobalQueueView
     },
     {
       path: '/permission-denied',
