@@ -103,12 +103,12 @@
           <div class="text-caption text-medium-emphasis mb-2">
             SLICER INTEGRATION (optional)
           </div>
-          <v-text-field
-            v-model="form.filamentProfilePath"
-            label="Filament profile path (.json)"
-            density="compact"
-            hint="Path to OrcaSlicer filament settings JSON on the server (Pi). Leave blank to skip auto-slicing."
-            persistent-hint
+          <div class="text-body-2 text-medium-emphasis mb-2">Filament profile (.json)</div>
+          <ProfileFileUpload
+            :path="form.filamentProfilePath"
+            type="filament"
+            @uploaded="form.filamentProfilePath = $event"
+            @error="notify($event, 'error')"
           />
         </v-card-text>
         <v-card-actions class="px-6 pb-4">
@@ -146,6 +146,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { FilamentService, type FilamentPreset } from '@/backend/filament.service'
+import ProfileFileUpload from '@/components/Settings/ProfileFileUpload.vue'
 
 const presets = ref<FilamentPreset[]>([])
 const loading = ref(false)

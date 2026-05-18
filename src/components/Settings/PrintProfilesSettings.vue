@@ -50,23 +50,25 @@
       <v-card>
         <v-card-title class="pt-4 px-6">{{ editing ? 'Edit Profile' : 'Add Print Profile' }}</v-card-title>
         <v-card-text class="px-6">
-          <v-text-field v-model="form.name" label="Name" density="compact" class="mb-1" />
-          <v-text-field
-            v-model="form.processProfilePath"
-            label="Process profile path (.json)"
-            density="compact"
-            hint="Path to OrcaSlicer process/print settings JSON"
-            persistent-hint
-            class="mb-2"
+          <v-text-field v-model="form.name" label="Name" density="compact" class="mb-3" />
+
+          <div class="text-caption text-medium-emphasis mb-1">PROCESS PROFILE (.json)</div>
+          <ProfileFileUpload
+            :path="form.processProfilePath"
+            type="process"
+            class="mb-3"
+            @uploaded="form.processProfilePath = $event"
           />
-          <v-text-field
-            v-model="form.printerProfilePath"
-            label="Printer profile path (.json)"
-            density="compact"
-            hint="Path to OrcaSlicer printer settings JSON"
-            persistent-hint
-            class="mb-2"
+
+          <div class="text-caption text-medium-emphasis mb-1">PRINTER PROFILE (.json)</div>
+          <ProfileFileUpload
+            :path="form.printerProfilePath"
+            type="machine"
+            class="mb-3"
+            @uploaded="form.printerProfilePath = $event"
           />
+
+          <v-divider class="mb-3" />
           <v-row>
             <v-col cols="6">
               <v-text-field v-model="form.nozzleType" label="Nozzle type" density="compact" />
@@ -134,6 +136,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { PrintProfileService, type PrintProfile, type CreatePrintProfileDto } from '@/backend/build-order-workflow.service'
+import ProfileFileUpload from '@/components/Settings/ProfileFileUpload.vue'
 
 const profiles = ref<PrintProfile[]>([])
 const loading = ref(false)

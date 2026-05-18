@@ -364,3 +364,27 @@ export class SlicerConfigService {
     return data
   }
 }
+
+// ─── Profile File Upload ──────────────────────────────────────────────────────
+
+export interface ProfileFileUploadResult {
+  path: string
+  fileName: string
+}
+
+export class ProfileFileService {
+  static async upload(
+    type: 'process' | 'machine' | 'filament',
+    file: File,
+  ): Promise<ProfileFileUploadResult> {
+    const client = await getHttpClient()
+    const form = new FormData()
+    form.append('file', file, file.name)
+    const { data } = await client.post<ProfileFileUploadResult>(
+      `/api/v2/profile-files?type=${type}`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+    return data
+  }
+}
