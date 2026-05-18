@@ -1,30 +1,26 @@
 <template>
   <v-card>
     <v-card-text>
-      <div class="d-flex align-center mb-4">
-        <h2 class="text-h6">Filament Profiles</h2>
+      <div class="d-flex align-center mb-2">
+        <h2 class="text-h6">Filament</h2>
         <v-spacer />
-        <v-btn color="primary" prepend-icon="mdi:mdi-plus" @click="openDialog()">Add Profile</v-btn>
+        <v-btn color="primary" prepend-icon="mdi:mdi-plus" @click="openDialog()">Add</v-btn>
       </div>
       <p class="text-body-2 text-medium-emphasis mb-4">
-        Filament profiles map to OrcaSlicer filament settings files and define the material and
-        color used when slicing plates.
+        Filament entries are shared between the spool-loading workflow and the plate optimizer.
+        Add a <strong>Slicer Profile Path</strong> to enable auto-slicing for that filament.
       </p>
 
       <v-data-table
         :headers="headers"
-        :items="profiles"
+        :items="presets"
         :loading="loading"
         item-value="id"
         hover
       >
         <template #item.color="{ item }">
           <div class="d-flex align-center ga-2">
-            <div
-              v-if="item.colorHex"
-              class="color-swatch"
-              :style="{ backgroundColor: item.colorHex }"
-            />
+            <div v-if="item.colorHex" class="color-swatch" :style="{ backgroundColor: item.colorHex }" />
             <span class="text-capitalize">{{ item.colorName }}</span>
           </div>
         </template>
@@ -33,10 +29,13 @@
           <v-chip size="small" variant="tonal">{{ item.material.toUpperCase() }}</v-chip>
         </template>
 
-        <template #item.active="{ item }">
-          <v-icon :color="item.active ? 'success' : 'grey'" size="small">
-            {{ item.active ? 'check_circle' : 'cancel' }}
-          </v-icon>
+        <template #item.filamentProfilePath="{ item }">
+          <v-icon v-if="item.filamentProfilePath" color="success" size="small">check_circle</v-icon>
+          <v-icon v-else color="grey" size="small">radio_button_unchecked</v-icon>
+        </template>
+
+        <template #item.defaultWeightGrams="{ item }">
+          {{ item.defaultWeightGrams ? `${item.defaultWeightGrams}g` : '—' }}
         </template>
 
         <template #item.actions="{ item }">
@@ -53,19 +52,12 @@
     </v-card-text>
 
     <!-- Add / Edit Dialog -->
-    <v-dialog v-model="dialog" max-width="480">
+    <v-dialog v-model="dialog" max-width="520">
       <v-card>
-        <v-card-title class="pt-4 px-6">{{ editing ? 'Edit Profile' : 'Add Filament Profile' }}</v-card-title>
+        <v-card-title class="pt-4 px-6">{{ editing ? 'Edit Filament' : 'Add Filament' }}</v-card-title>
         <v-card-text class="px-6">
-          <v-text-field v-model="form.name" label="Name" density="compact" class="mb-1" />
-          <v-text-field
-            v-model="form.filamentProfilePath"
-            label="Filament profile path (.json)"
-            density="compact"
-            hint="Path to OrcaSlicer filament settings JSON"
-            persistent-hint
-            class="mb-2"
-          />
+          <v-text-field v-model="form.name" label="Name (e.g. Hatchbox PLA Black)" density="compact" class="mb-1" />
+
           <v-row>
             <v-col cols="6">
               <v-select
@@ -79,7 +71,8 @@
               <v-text-field v-model="form.colorName" label="Color name (e.g. black)" density="compact" />
             </v-col>
           </v-row>
-          <div class="d-flex align-center ga-2 mb-1">
+
+          <div class="d-flex align-center ga-2 mb-2">
             <div class="color-picker-wrapper">
               <div class="color-picker-btn" :style="{ backgroundColor: form.colorHex || '#aaaaaa' }" />
               <input
@@ -89,13 +82,34 @@
                 @input="(e) => form.colorHex = (e.target as HTMLInputElement).value"
               />
             </div>
-            <v-text-field
-              v-model="form.colorHex"
-              label="Color hex (e.g. #1a1a1a)"
-              hide-details
-              density="compact"
-            />
+            <v-text-field v-model="form.colorHex" label="Color hex" hide-details density="compact" />
           </div>
+
+          <v-row>
+            <v-col cols="6">
+              <v-text-field v-model="form.brand" label="Brand (optional)" density="compact" />
+            </v-col>
+            <v-col cols="6">
+              <v-text-field
+                v-model.number="form.defaultWeightGrams"
+                label="Default spool weight (g)"
+                type="number"
+                density="compact"
+              />
+            </v-col>
+          </v-row>
+
+          <v-divider class="my-3" />
+          <div class="text-caption text-medium-emphasis mb-2">
+            SLICER INTEGRATION (optional)
+          </div>
+          <v-text-field
+            v-model="form.filamentProfilePath"
+            label="Filament profile path (.json)"
+            density="compact"
+            hint="Path to OrcaSlicer filament settings JSON on the server (Pi). Leave blank to skip auto-slicing."
+            persistent-hint
+          />
         </v-card-text>
         <v-card-actions class="px-6 pb-4">
           <v-spacer />
@@ -103,7 +117,7 @@
           <v-btn
             color="primary"
             :loading="saving"
-            :disabled="!form.name || !form.filamentProfilePath || !form.material || !form.colorName"
+            :disabled="!form.name || !form.material || !form.colorName"
             @click="save"
           >
             Save
@@ -115,7 +129,7 @@
     <!-- Delete Confirm -->
     <v-dialog v-model="deleteDialog" max-width="420">
       <v-card>
-        <v-card-title>Delete Profile?</v-card-title>
+        <v-card-title>Delete Filament?</v-card-title>
         <v-card-text>Delete <strong>{{ deletingItem?.name }}</strong>? This cannot be undone.</v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -131,16 +145,16 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { FilamentProfileService, type FilamentProfile, type CreateFilamentProfileDto } from '@/backend/build-order-workflow.service'
+import { FilamentService, type FilamentPreset } from '@/backend/filament.service'
 
-const profiles = ref<FilamentProfile[]>([])
+const presets = ref<FilamentPreset[]>([])
 const loading = ref(false)
 const dialog = ref(false)
 const saving = ref(false)
 const deleteDialog = ref(false)
 const deleting = ref(false)
-const editing = ref<FilamentProfile | null>(null)
-const deletingItem = ref<FilamentProfile | null>(null)
+const editing = ref<FilamentPreset | null>(null)
+const deletingItem = ref<FilamentPreset | null>(null)
 const snackbar = ref(false)
 const snackbarMsg = ref('')
 const snackbarColor = ref('success')
@@ -149,16 +163,19 @@ const headers = [
   { title: 'Name', key: 'name' },
   { title: 'Material', key: 'material' },
   { title: 'Color', key: 'color' },
-  { title: 'Active', key: 'active', width: 80 },
+  { title: 'Default Weight', key: 'defaultWeightGrams' },
+  { title: 'Slicer Profile', key: 'filamentProfilePath', width: 120 },
   { title: 'Actions', key: 'actions', sortable: false, width: 100 },
 ]
 
-const form = ref<CreateFilamentProfileDto>({
+const form = ref({
   name: '',
-  filamentProfilePath: '',
   material: 'PLA',
   colorName: '',
-  colorHex: null,
+  colorHex: null as string | null,
+  brand: null as string | null,
+  defaultWeightGrams: null as number | null,
+  filamentProfilePath: null as string | null,
 })
 
 function notify(msg: string, color = 'success') {
@@ -170,40 +187,52 @@ function notify(msg: string, color = 'success') {
 async function load() {
   loading.value = true
   try {
-    profiles.value = await FilamentProfileService.list()
+    presets.value = await FilamentService.listPresets()
   } catch (_) {
-    notify('Failed to load profiles', 'error')
+    notify('Failed to load filaments', 'error')
   } finally {
     loading.value = false
   }
 }
 
-function openDialog(profile?: FilamentProfile) {
-  editing.value = profile ?? null
-  form.value = profile
+function openDialog(preset?: FilamentPreset) {
+  editing.value = preset ?? null
+  form.value = preset
     ? {
-        name: profile.name,
-        filamentProfilePath: profile.filamentProfilePath,
-        material: profile.material,
-        colorName: profile.colorName,
-        colorHex: profile.colorHex,
+        name: preset.name,
+        material: preset.material.toUpperCase(),
+        colorName: preset.colorName,
+        colorHex: preset.colorHex,
+        brand: preset.brand,
+        defaultWeightGrams: preset.defaultWeightGrams,
+        filamentProfilePath: preset.filamentProfilePath ?? null,
       }
-    : { name: '', filamentProfilePath: '', material: 'PLA', colorName: '', colorHex: null }
+    : { name: '', material: 'PLA', colorName: '', colorHex: null, brand: null, defaultWeightGrams: null, filamentProfilePath: null }
   dialog.value = true
 }
 
 async function save() {
   saving.value = true
   try {
+    const dto = {
+      name: form.value.name,
+      material: form.value.material,
+      colorName: form.value.colorName,
+      colorHex: form.value.colorHex || null,
+      brand: form.value.brand || null,
+      defaultWeightGrams: form.value.defaultWeightGrams,
+      filamentProfilePath: form.value.filamentProfilePath || null,
+    }
+
     if (editing.value) {
-      const updated = await FilamentProfileService.update(editing.value.id, form.value)
-      const idx = profiles.value.findIndex(p => p.id === editing.value!.id)
-      if (idx !== -1) profiles.value[idx] = updated
-      notify('Profile updated')
+      const updated = await FilamentService.updatePreset(editing.value.id, dto)
+      const idx = presets.value.findIndex(p => p.id === editing.value!.id)
+      if (idx !== -1) presets.value[idx] = updated
+      notify('Filament updated')
     } else {
-      const created = await FilamentProfileService.create(form.value)
-      profiles.value.push(created)
-      notify('Profile created')
+      const created = await FilamentService.createPreset(dto as any)
+      presets.value.push(created)
+      notify('Filament created')
     }
     dialog.value = false
   } catch (e: any) {
@@ -213,8 +242,8 @@ async function save() {
   }
 }
 
-function confirmDelete(profile: FilamentProfile) {
-  deletingItem.value = profile
+function confirmDelete(preset: FilamentPreset) {
+  deletingItem.value = preset
   deleteDialog.value = true
 }
 
@@ -222,9 +251,9 @@ async function submitDelete() {
   if (!deletingItem.value) return
   deleting.value = true
   try {
-    await FilamentProfileService.remove(deletingItem.value.id)
-    profiles.value = profiles.value.filter(p => p.id !== deletingItem.value!.id)
-    notify('Profile deleted')
+    await FilamentService.deletePreset(deletingItem.value.id)
+    presets.value = presets.value.filter(p => p.id !== deletingItem.value!.id)
+    notify('Filament deleted')
   } catch (e: any) {
     notify(e?.response?.data?.error ?? 'Failed to delete', 'error')
   } finally {

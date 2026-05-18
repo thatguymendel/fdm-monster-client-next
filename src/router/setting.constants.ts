@@ -9,13 +9,12 @@ export const settingPage = {
   diagnostics: "diagnostics",
   experimental: "experimental",
   slicer: "slicer",
-  filamentPresets: "filamentPresets",
-  apiKeys: "apiKeys",
-  debugSocket: "debugSocket",
-  about: "about",
   orcaSlicer: "orcaSlicer",
   printProfiles: "printProfiles",
   filamentProfiles: "filamentProfiles",
+  apiKeys: "apiKeys",
+  debugSocket: "debugSocket",
+  about: "about",
 } as const;
 
 export const settingsPage = {
@@ -79,10 +78,22 @@ export const settingsPage = {
     path: "/settings/slicer",
     divider: false,
   },
-  [settingPage.filamentPresets]: {
-    title: "Filament Presets",
+  [settingPage.orcaSlicer]: {
+    title: "OrcaSlicer",
+    icon: "mdi:mdi-printer-3d-nozzle",
+    path: "/settings/orca-slicer",
+    divider: false,
+  },
+  [settingPage.printProfiles]: {
+    title: "Print Profiles",
+    icon: "mdi:mdi-layers",
+    path: "/settings/print-profiles",
+    divider: false,
+  },
+  [settingPage.filamentProfiles]: {
+    title: "Filament",
     icon: "mdi:mdi-water",
-    path: "/settings/filament-presets",
+    path: "/settings/filament-profiles",
     divider: false,
   },
   [settingPage.apiKeys]: {
@@ -101,24 +112,6 @@ export const settingsPage = {
     title: "About",
     icon: "info",
     path: "/settings/about",
-    divider: true,
-  },
-  [settingPage.orcaSlicer]: {
-    title: "OrcaSlicer",
-    icon: "mdi:mdi-printer-3d-nozzle",
-    path: "/settings/orca-slicer",
-    divider: false,
-  },
-  [settingPage.printProfiles]: {
-    title: "Print Profiles",
-    icon: "mdi:mdi-layers",
-    path: "/settings/print-profiles",
-    divider: false,
-  },
-  [settingPage.filamentProfiles]: {
-    title: "Filament Profiles",
-    icon: "mdi:mdi-water",
-    path: "/settings/filament-profiles",
     divider: false,
   },
 } as const;

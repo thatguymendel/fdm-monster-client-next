@@ -24,6 +24,8 @@ export interface FilamentPreset {
   colorName: string
   colorHex: string | null
   defaultWeightGrams: number | null
+  /** Path to OrcaSlicer filament profile JSON on the FDM Monster server. Optional — only needed for auto-slicing. */
+  filamentProfilePath?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -34,6 +36,16 @@ export interface LoadSpoolDto {
   colorName: string
   colorHex?: string | null
   weightGrams: number
+}
+
+export interface UpdateFilamentPresetDto {
+  name?: string
+  brand?: string | null
+  material?: string
+  colorName?: string
+  colorHex?: string | null
+  defaultWeightGrams?: number | null
+  filamentProfilePath?: string | null
 }
 
 export interface CreateSpoolDto {
@@ -129,6 +141,12 @@ export class FilamentService {
   static async createPreset(dto: Omit<FilamentPreset, 'id' | 'createdAt' | 'updatedAt'>): Promise<FilamentPreset> {
     const client = await getHttpClient()
     const { data } = await client.post<FilamentPreset>('/api/v2/filament/presets', dto)
+    return data
+  }
+
+  static async updatePreset(id: number, dto: UpdateFilamentPresetDto): Promise<FilamentPreset> {
+    const client = await getHttpClient()
+    const { data } = await client.patch<FilamentPreset>(`/api/v2/filament/presets/${id}`, dto)
     return data
   }
 

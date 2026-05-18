@@ -330,11 +330,9 @@ export class PlannedPlateService {
 
 // ─── Slicer Config ────────────────────────────────────────────────────────────
 
-export interface SlicerConfig {
-  mode: 'local'
-  binaryPath: string
-  timeoutMs?: number
-}
+export type SlicerConfig =
+  | { mode: 'local'; binaryPath: string; timeoutMs?: number }
+  | { mode: 'remote'; remoteUrl: string; timeoutMs?: number }
 
 export interface SlicerConfigResponse {
   configured: boolean

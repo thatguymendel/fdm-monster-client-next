@@ -25,7 +25,6 @@ import ExperimentalSettings from '@/components/Settings/ExperimentalSettings.vue
 import ProductionView from '@/components/Production/ProductionView.vue'
 import GlobalQueueView from '@/components/GlobalQueue/GlobalQueueView.vue'
 import SlicerSettings from '@/components/Settings/SlicerSettings.vue'
-import FilamentPresetsSettings from '@/components/Settings/FilamentPresetsSettings.vue'
 import ApiKeysSettings from '@/components/Settings/ApiKeysSettings.vue'
 import DebugSocketSettings from "@/components/Settings/DebugSocketSettings.vue";
 import AboutSettings from "@/components/Settings/AboutSettings.vue";
@@ -145,11 +144,6 @@ const router = createRouter({
           path: 'slicer',
           meta: NeedsAuth,
           component: SlicerSettings
-        },
-        {
-          path: 'filament-presets',
-          meta: NeedsAuth,
-          component: FilamentPresetsSettings
         },
         {
           path: 'api-keys',
