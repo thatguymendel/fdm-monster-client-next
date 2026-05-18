@@ -1,4 +1,5 @@
 import { getHttpClient } from '@/shared/http-client'
+import type { PartFile, PartFolder } from './part-catalog.service'
 
 // ─── Print Profile ────────────────────────────────────────────────────────────
 
@@ -118,8 +119,10 @@ export interface PrintPart {
   id: number
   externalPartId: string
   name: string
-  stlFileStorageId: string | null
-  gcodeFileStorageId: string | null
+  partFileId: string | null
+  folderId: number | null
+  partFile: PartFile | null
+  folder: PartFolder | null
   printProfileId: number | null
   filamentProfileId: number | null
   printProfile: PrintProfile | null
@@ -133,8 +136,8 @@ export interface PrintPart {
 export interface CreatePrintPartDto {
   externalPartId: string
   name: string
-  stlFileStorageId?: string | null
-  gcodeFileStorageId?: string | null
+  partFileId?: string | null
+  folderId?: number | null
   printProfileId?: number | null
   filamentProfileId?: number | null
   plateConstraint?: PlateConstraint
@@ -146,6 +149,21 @@ export class PrintPartService {
   static async list(): Promise<PrintPart[]> {
     const client = await getHttpClient()
     const { data } = await client.get<{ parts: PrintPart[] }>('/api/v2/print-parts')
+    return data.parts
+  }
+
+  static async listInFolder(folderId: number | null): Promise<PrintPart[]> {
+    const client = await getHttpClient()
+    const params = folderId === null ? { folderId: 'null' } : { folderId }
+    const { data } = await client.get<{ parts: PrintPart[] }>('/api/v2/print-parts', { params })
+    return data.parts
+  }
+
+  static async search(query: string): Promise<PrintPart[]> {
+    const client = await getHttpClient()
+    const { data } = await client.get<{ parts: PrintPart[] }>('/api/v2/print-parts', {
+      params: { search: query },
+    })
     return data.parts
   }
 

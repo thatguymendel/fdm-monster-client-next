@@ -45,10 +45,11 @@ const items = [
   ['dashboard', 'Dashboard', '/dashboard'],
   ['view_module', 'Printer Grid', '/printer-grid'],
   ['mdi:mdi-printer', 'Printers', '/printer-list'],
-  ['mdi:mdi-camera', 'Cameras', '/cameras'],
   ['mdi:mdi-history', 'Print Jobs', '/jobs'],
+  ['mdi:mdi-playlist-play', 'Global Queue', '/global-queue'],
   ['mdi:mdi-folder', 'Files', '/files'],
   ['mdi:mdi-bug', 'Maintenance', '/maintenance-logs'],
+  ['mdi:mdi-cube-outline', 'Parts', '/parts'],
   ['mdi:mdi-factory', 'Production', '/production'],
   ['mdi:mdi-cog', 'Settings', '/settings']
 ]

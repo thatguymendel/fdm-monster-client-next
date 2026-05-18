@@ -6,7 +6,6 @@
 
     <v-tabs v-model="tab" class="mb-4">
       <v-tab value="orders">Build Orders</v-tab>
-      <v-tab value="parts">Part Catalog</v-tab>
       <v-tab value="plates">Planned Plates</v-tab>
     </v-tabs>
 
@@ -92,67 +91,6 @@
                 @click="viewOrder(item)"
               >
                 <v-icon>mdi:mdi-eye</v-icon>
-              </v-btn>
-            </div>
-          </template>
-        </v-data-table>
-      </v-window-item>
-
-      <!-- ─── PART CATALOG TAB ─────────────────────────────────────────────── -->
-      <v-window-item value="parts">
-        <div class="d-flex align-center ga-2 mb-3">
-          <v-btn color="primary" prepend-icon="mdi:mdi-plus" @click="openPartDialog()">
-            Add Part
-          </v-btn>
-          <v-btn icon variant="text" :loading="loadingParts" @click="fetchParts">
-            <v-icon>mdi:mdi-refresh</v-icon>
-          </v-btn>
-        </div>
-
-        <v-data-table
-          :headers="partHeaders"
-          :items="parts"
-          :loading="loadingParts"
-          item-value="id"
-          hover
-        >
-          <template #item.plateConstraint="{ item }">
-            <v-chip
-              :color="constraintColor(item.plateConstraint)"
-              size="small"
-              variant="tonal"
-            >
-              {{ item.plateConstraint }}
-            </v-chip>
-          </template>
-
-          <template #item.printProfile="{ item }">
-            {{ item.printProfile?.name ?? '—' }}
-          </template>
-
-          <template #item.filamentProfile="{ item }">
-            <div v-if="item.filamentProfile" class="d-flex align-center ga-1">
-              <div
-                v-if="item.filamentProfile.colorHex"
-                class="color-dot"
-                :style="{ backgroundColor: item.filamentProfile.colorHex }"
-              />
-              {{ item.filamentProfile.name }}
-            </div>
-            <span v-else>—</span>
-          </template>
-
-          <template #item.estimatedPrintMinutes="{ item }">
-            {{ item.estimatedPrintMinutes != null ? `${item.estimatedPrintMinutes} min` : '—' }}
-          </template>
-
-          <template #item.actions="{ item }">
-            <div class="d-flex ga-1">
-              <v-btn icon size="small" variant="text" @click="openPartDialog(item)">
-                <v-icon>mdi:mdi-pencil</v-icon>
-              </v-btn>
-              <v-btn icon size="small" variant="text" color="error" @click="confirmDeletePart(item)">
-                <v-icon>mdi:mdi-delete</v-icon>
               </v-btn>
             </div>
           </template>
@@ -390,129 +328,6 @@
       </v-card>
     </v-dialog>
 
-    <!-- ─── ADD / EDIT PART DIALOG ─────────────────────────────────────────── -->
-    <v-dialog v-model="partDialog" max-width="520">
-      <v-card>
-        <v-card-title class="pt-4 px-6">{{ editingPart ? 'Edit Part' : 'Add Part' }}</v-card-title>
-        <v-card-text class="px-6">
-          <v-text-field
-            v-model="partForm.externalPartId"
-            label="External Part ID"
-            density="compact"
-            :disabled="!!editingPart"
-            class="mb-1"
-          />
-          <v-text-field
-            v-model="partForm.name"
-            label="Display Name"
-            density="compact"
-            class="mb-1"
-          />
-          <div class="d-flex align-center ga-2 mb-2">
-            <v-btn
-              variant="tonal"
-              size="small"
-              prepend-icon="mdi:mdi-paperclip"
-              :loading="uploadingStl"
-              @click="triggerStlUpload"
-            >
-              {{ partForm.stlFileStorageId ? 'Replace STL / GCode' : 'Upload STL / GCode' }}
-            </v-btn>
-            <span v-if="stlUploadName" class="text-body-2 text-truncate" style="max-width:200px">
-              {{ stlUploadName }}
-            </span>
-            <span v-else-if="partForm.stlFileStorageId" class="text-body-2 text-medium-emphasis">
-              (file on server)
-            </span>
-            <input
-              ref="stlFileInput"
-              type="file"
-              accept=".stl,.gcode,.3mf,.bgcode"
-              style="display:none"
-              @change="onStlFileSelected"
-            />
-          </div>
-          <v-row>
-            <v-col cols="6">
-              <v-select
-                v-model="partForm.printProfileId"
-                label="Print Profile"
-                :items="printProfileItems"
-                item-value="value"
-                item-title="title"
-                density="compact"
-                clearable
-              />
-            </v-col>
-            <v-col cols="6">
-              <v-select
-                v-model="partForm.filamentProfileId"
-                label="Filament Profile"
-                :items="filamentProfileItems"
-                item-value="value"
-                item-title="title"
-                density="compact"
-                clearable
-              />
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col cols="6">
-              <v-select
-                v-model="partForm.plateConstraint"
-                label="Plate Constraint"
-                :items="['REQUIRED', 'PREFERRED', 'FLEXIBLE']"
-                density="compact"
-              />
-            </v-col>
-            <v-col cols="3">
-              <v-text-field
-                v-model.number="partForm.maxPerPlate"
-                label="Max / plate"
-                type="number"
-                density="compact"
-              />
-            </v-col>
-            <v-col cols="3">
-              <v-text-field
-                v-model.number="partForm.estimatedPrintMinutes"
-                label="Est. min"
-                type="number"
-                density="compact"
-              />
-            </v-col>
-          </v-row>
-        </v-card-text>
-        <v-card-actions class="px-6 pb-4">
-          <v-spacer />
-          <v-btn variant="text" @click="partDialog = false">Cancel</v-btn>
-          <v-btn
-            color="primary"
-            :loading="savingPart"
-            :disabled="!partForm.externalPartId || !partForm.name"
-            @click="submitPart"
-          >
-            Save
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <!-- ─── DELETE PART CONFIRM ────────────────────────────────────────────── -->
-    <v-dialog v-model="deletePartDialog" max-width="420">
-      <v-card>
-        <v-card-title>Delete Part?</v-card-title>
-        <v-card-text>
-          Delete <strong>{{ deletingPart?.externalPartId }}</strong>? This cannot be undone.
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="deletePartDialog = false">Cancel</v-btn>
-          <v-btn color="error" :loading="deletingPartLoading" @click="submitDeletePart">Delete</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
     <!-- ─── VIEW PLATE DIALOG ──────────────────────────────────────────────── -->
     <v-dialog v-model="viewPlateDialog" max-width="600">
       <v-card v-if="selectedPlate">
@@ -579,19 +394,15 @@
 
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
-import { FilamentService } from '@/backend/filament.service'
-import { FileStorageService } from '@/backend/file-storage.service'
 import {
   BuildOrderService,
   PrintPartService,
   PlannedPlateService,
-  PrintProfileService,
   type BuildOrder,
   type BuildOrderStatus,
   type PrintPart,
   type PlannedPlate,
   type PlannedPlateStatus,
-  type PlateConstraint,
   type CreateBuildOrderLineDto,
 } from '@/backend/build-order-workflow.service'
 
@@ -761,202 +572,21 @@ async function submitOrder() {
   }
 }
 
-// ─── Parts ────────────────────────────────────────────────────────────────────
+// ─── Parts (kept for intake autocomplete) ────────────────────────────────────
 
 const parts = ref<PrintPart[]>([])
-const loadingParts = ref(false)
-
-const partHeaders = [
-  { title: 'ID', key: 'id', width: 60 },
-  { title: 'External Part ID', key: 'externalPartId' },
-  { title: 'Name', key: 'name' },
-  { title: 'Print Profile', key: 'printProfile' },
-  { title: 'Filament Profile', key: 'filamentProfile' },
-  { title: 'Constraint', key: 'plateConstraint' },
-  { title: 'Est. Time', key: 'estimatedPrintMinutes' },
-  { title: 'Actions', key: 'actions', sortable: false },
-]
-
-function constraintColor(c: PlateConstraint): string {
-  return c === 'REQUIRED' ? 'error' : c === 'PREFERRED' ? 'warning' : 'success'
-}
 
 async function fetchParts() {
-  loadingParts.value = true
   try {
     parts.value = await PrintPartService.list()
-  } catch (e) {
-    notify('Failed to load parts', 'error')
-  } finally {
-    loadingParts.value = false
-  }
-}
-
-const partDialog = ref(false)
-const savingPart = ref(false)
-const editingPart = ref<PrintPart | null>(null)
-
-const partForm = ref<{
-  externalPartId: string
-  name: string
-  stlFileStorageId: string | null
-  printProfileId: number | null
-  filamentProfileId: number | null
-  plateConstraint: PlateConstraint
-  maxPerPlate: number
-  estimatedPrintMinutes: number | null
-}>({
-  externalPartId: '',
-  name: '',
-  stlFileStorageId: null,
-  printProfileId: null,
-  filamentProfileId: null,
-  plateConstraint: 'FLEXIBLE',
-  maxPerPlate: 4,
-  estimatedPrintMinutes: null,
-})
-
-const stlFileInput = ref<HTMLInputElement | null>(null)
-const stlUploadName = ref<string | null>(null)
-const uploadingStl = ref(false)
-
-function triggerStlUpload() {
-  stlFileInput.value?.click()
-}
-
-async function onStlFileSelected(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  uploadingStl.value = true
-  try {
-    const result = await FileStorageService.uploadFile(file)
-    partForm.value.stlFileStorageId = result.fileStorageId
-    stlUploadName.value = result.fileName
-  } catch (err: any) {
-    notify(err?.response?.data?.error ?? 'Failed to upload file', 'error')
-  } finally {
-    uploadingStl.value = false
-    if (stlFileInput.value) stlFileInput.value.value = ''
+  } catch (_) {
+    // non-critical; autocomplete just stays empty
   }
 }
 
 const partAutocompleteItems = computed(() =>
   parts.value.map(p => ({ externalPartId: p.externalPartId, label: `${p.name} — ${p.externalPartId}` }))
 )
-
-function openPartDialog(part?: PrintPart) {
-  editingPart.value = part ?? null
-  stlUploadName.value = null
-  partForm.value = part
-    ? {
-        externalPartId: part.externalPartId,
-        name: part.name,
-        stlFileStorageId: part.stlFileStorageId,
-        printProfileId: part.printProfileId,
-        filamentProfileId: part.filamentProfileId,
-        plateConstraint: part.plateConstraint,
-        maxPerPlate: part.maxPerPlate,
-        estimatedPrintMinutes: part.estimatedPrintMinutes,
-      }
-    : {
-        externalPartId: '',
-        name: '',
-        stlFileStorageId: null,
-        printProfileId: null,
-        filamentProfileId: null,
-        plateConstraint: 'FLEXIBLE',
-        maxPerPlate: 4,
-        estimatedPrintMinutes: null,
-      }
-  partDialog.value = true
-}
-
-async function submitPart() {
-  savingPart.value = true
-  try {
-    if (editingPart.value) {
-      const updated = await PrintPartService.update(editingPart.value.id, {
-        name: partForm.value.name,
-        stlFileStorageId: partForm.value.stlFileStorageId,
-        printProfileId: partForm.value.printProfileId,
-        filamentProfileId: partForm.value.filamentProfileId,
-        plateConstraint: partForm.value.plateConstraint,
-        maxPerPlate: partForm.value.maxPerPlate,
-        estimatedPrintMinutes: partForm.value.estimatedPrintMinutes,
-      })
-      const idx = parts.value.findIndex(p => p.id === editingPart.value!.id)
-      if (idx !== -1) parts.value[idx] = updated
-      notify('Part updated')
-    } else {
-      const created = await PrintPartService.create({
-        externalPartId: partForm.value.externalPartId,
-        name: partForm.value.name,
-        stlFileStorageId: partForm.value.stlFileStorageId,
-        printProfileId: partForm.value.printProfileId,
-        filamentProfileId: partForm.value.filamentProfileId,
-        plateConstraint: partForm.value.plateConstraint,
-        maxPerPlate: partForm.value.maxPerPlate,
-        estimatedPrintMinutes: partForm.value.estimatedPrintMinutes,
-      })
-      parts.value.push(created)
-      notify('Part created')
-    }
-    partDialog.value = false
-  } catch (e: any) {
-    notify(e?.response?.data?.error ?? 'Failed to save part', 'error')
-  } finally {
-    savingPart.value = false
-  }
-}
-
-const deletePartDialog = ref(false)
-const deletingPart = ref<PrintPart | null>(null)
-const deletingPartLoading = ref(false)
-
-function confirmDeletePart(part: PrintPart) {
-  deletingPart.value = part
-  deletePartDialog.value = true
-}
-
-async function submitDeletePart() {
-  if (!deletingPart.value) return
-  deletingPartLoading.value = true
-  try {
-    await PrintPartService.remove(deletingPart.value.id)
-    parts.value = parts.value.filter(p => p.id !== deletingPart.value!.id)
-    notify('Part deleted')
-  } catch (e: any) {
-    notify(e?.response?.data?.error ?? 'Failed to delete part', 'error')
-  } finally {
-    deletingPartLoading.value = false
-    deletePartDialog.value = false
-  }
-}
-
-// ─── Profile dropdowns (for part form) ───────────────────────────────────────
-
-const printProfiles = ref<{ id: number; name: string }[]>([])
-const filamentProfiles = ref<{ id: number; name: string }[]>([])
-
-const printProfileItems = computed(() =>
-  printProfiles.value.map(p => ({ value: p.id, title: p.name }))
-)
-const filamentProfileItems = computed(() =>
-  filamentProfiles.value.map(p => ({ value: p.id, title: p.name }))
-)
-
-async function fetchProfiles() {
-  try {
-    const [pp, fp] = await Promise.all([
-      PrintProfileService.list(),
-      FilamentService.listPresets(),
-    ])
-    printProfiles.value = pp
-    filamentProfiles.value = fp
-  } catch (_) {
-    // non-critical
-  }
-}
 
 // ─── Planned Plates ───────────────────────────────────────────────────────────
 
@@ -1047,7 +677,7 @@ async function submitCancelPlate() {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
-  await Promise.all([fetchOrders(), fetchParts(), fetchPlates(), fetchProfiles()])
+  await Promise.all([fetchOrders(), fetchParts(), fetchPlates()])
 })
 </script>
 

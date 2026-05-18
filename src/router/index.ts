@@ -23,6 +23,7 @@ import MaintenanceLogsView from '../components/MaintenanceLogs/MaintenanceLogsVi
 import FilesView from '../components/Files/FilesView.vue'
 import ExperimentalSettings from '@/components/Settings/ExperimentalSettings.vue'
 import ProductionView from '@/components/Production/ProductionView.vue'
+import PartsView from '@/components/Parts/PartsView.vue'
 import GlobalQueueView from '@/components/GlobalQueue/GlobalQueueView.vue'
 import SlicerSettings from '@/components/Settings/SlicerSettings.vue'
 import ApiKeysSettings from '@/components/Settings/ApiKeysSettings.vue'
@@ -194,6 +195,12 @@ const router = createRouter({
       name: RouteNames.Files,
       meta: NeedsAuth,
       component: FilesView
+    },
+    {
+      path: '/parts',
+      name: RouteNames.Parts,
+      meta: NeedsAuth,
+      component: PartsView
     },
     {
       path: '/production',

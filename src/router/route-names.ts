@@ -5,7 +5,6 @@ export const RouteNames = {
   Registration: 'Registration',
   PrintersView: 'PrintersView',
   Settings: 'Settings',
-  CameraGridView: 'CameraGridView',
   PrintJobs: 'Print Jobs',
   Files: 'Files',
   About: 'About',
@@ -14,4 +13,6 @@ export const RouteNames = {
   FirstTimeSetup: 'FirstTimeSetup',
   Filament: 'Filament',
   Production: 'Production',
+  GlobalQueue: 'GlobalQueue',
+  Parts: 'Parts',
 }
