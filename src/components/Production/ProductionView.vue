@@ -4,185 +4,196 @@
       <h1 class="text-h5">Production</h1>
     </div>
 
-    <v-tabs v-model="tab" class="mb-4">
-      <v-tab value="orders">Build Orders</v-tab>
-      <v-tab value="plates">Planned Plates</v-tab>
-    </v-tabs>
+    <!-- ─── Toolbar ───────────────────────────────────────────────────────────── -->
+    <div class="d-flex align-center ga-2 mb-3 flex-wrap">
+      <v-select
+        v-model="orderStatusFilter"
+        label="Filter by status"
+        :items="orderStatusItems"
+        density="compact"
+        style="max-width: 200px"
+        clearable
+        hide-details
+        @update:model-value="fetchOrders"
+      />
+      <v-btn icon variant="text" :loading="loadingOrders" @click="fetchOrders">
+        <v-icon>mdi:mdi-refresh</v-icon>
+      </v-btn>
+      <v-spacer />
+      <v-btn color="primary" prepend-icon="mdi:mdi-plus" @click="openIntakeDialog">
+        New Order
+      </v-btn>
+    </div>
 
-    <v-window v-model="tab">
+    <!-- ─── Orders table (expandable) ────────────────────────────────────────── -->
+    <v-data-table
+      v-model:expanded="expanded"
+      :headers="orderHeaders"
+      :items="orders"
+      :loading="loadingOrders"
+      item-value="id"
+      show-expand
+      hover
+      @update:expanded="onExpand"
+    >
+      <template #item.status="{ item }">
+        <v-chip :color="orderStatusColor(item.status)" size="small" variant="tonal">
+          {{ item.status }}
+        </v-chip>
+      </template>
 
-      <!-- ─── BUILD ORDERS TAB ─────────────────────────────────────────────── -->
-      <v-window-item value="orders">
-        <div class="d-flex align-center ga-2 mb-3">
-          <v-btn color="primary" prepend-icon="mdi:mdi-plus" @click="openIntakeDialog">
-            New Order
-          </v-btn>
-          <v-select
-            v-model="orderStatusFilter"
-            label="Filter by status"
-            :items="orderStatusItems"
-            density="compact"
-            style="max-width: 220px"
-            clearable
-            hide-details
-            @update:model-value="fetchOrders"
+      <template #item.dynamicPriority="{ item }">
+        <div class="d-flex align-center ga-1">
+          <v-progress-linear
+            :model-value="item.dynamicPriority"
+            :color="item.dynamicPriority >= 70 ? 'error' : item.dynamicPriority >= 30 ? 'warning' : 'success'"
+            rounded
+            height="8"
+            style="min-width: 60px"
           />
-          <v-btn icon variant="text" :loading="loadingOrders" @click="fetchOrders">
-            <v-icon>mdi:mdi-refresh</v-icon>
+          <span class="text-caption">{{ Math.round(item.dynamicPriority) }}</span>
+        </div>
+      </template>
+
+      <template #item.requiredBy="{ item }">
+        {{ item.requiredBy ? new Date(item.requiredBy).toLocaleDateString() : '—' }}
+      </template>
+
+      <template #item.lines="{ item }">
+        <span class="text-caption">{{ item.lines?.length ?? 0 }} line(s)</span>
+        <v-chip
+          v-if="item.lines?.some(l => !l.printPartId)"
+          color="warning"
+          size="x-small"
+          variant="tonal"
+          class="ml-1"
+        >
+          unresolved
+        </v-chip>
+      </template>
+
+      <template #item.actions="{ item }">
+        <div class="d-flex ga-1 justify-end">
+          <v-btn
+            v-if="item.status === 'RECEIVED'"
+            size="small"
+            variant="tonal"
+            color="primary"
+            @click.stop="acceptOrder(item)"
+          >
+            Accept
+          </v-btn>
+          <v-btn
+            v-if="item.status === 'RECEIVED'"
+            size="small"
+            variant="tonal"
+            color="error"
+            @click.stop="confirmRejectOrder(item)"
+          >
+            Reject
+          </v-btn>
+          <v-btn
+            v-if="!['COMPLETED', 'REJECTED', 'FAILED', 'RECEIVED'].includes(item.status)"
+            icon
+            size="small"
+            variant="text"
+            color="error"
+            @click.stop="confirmRejectOrder(item)"
+          >
+            <v-icon>mdi:mdi-cancel</v-icon>
           </v-btn>
         </div>
+      </template>
 
-        <v-data-table
-          :headers="orderHeaders"
-          :items="orders"
-          :loading="loadingOrders"
-          item-value="id"
-          hover
-        >
-          <template #item.status="{ item }">
-            <v-chip :color="orderStatusColor(item.status)" size="small" variant="tonal">
-              {{ item.status }}
-            </v-chip>
-          </template>
+      <!-- ─── Expanded row: plates for this order ──────────────────────────── -->
+      <template #expanded-row="{ item, columns }">
+        <tr>
+          <td :colspan="columns.length" class="pa-0">
+            <div class="plate-panel">
+              <div v-if="loadingPlatesFor.has(item.id)" class="pa-4 text-center text-medium-emphasis">
+                <v-progress-circular indeterminate size="20" class="mr-2" />
+                Loading plates...
+              </div>
 
-          <template #item.dynamicPriority="{ item }">
-            <v-progress-linear
-              :model-value="item.dynamicPriority"
-              :color="item.dynamicPriority >= 70 ? 'error' : item.dynamicPriority >= 30 ? 'warning' : 'success'"
-              rounded
-              height="10"
-              style="min-width: 80px"
-            />
-            <span class="text-caption ml-1">{{ Math.round(item.dynamicPriority) }}</span>
-          </template>
+              <div v-else-if="!orderPlates.get(item.id)?.length" class="pa-4 text-medium-emphasis text-body-2">
+                <v-icon size="small" class="mr-1">mdi:mdi-clock-outline</v-icon>
+                No plates yet — plate optimizer runs every 5 minutes for ACCEPTED orders.
+                <v-btn
+                  v-if="item.status === 'ACCEPTED'"
+                  variant="text"
+                  size="small"
+                  color="primary"
+                  class="ml-1"
+                  :loading="refreshingPlates.has(item.id)"
+                  @click="refreshPlates(item.id)"
+                >
+                  Check now
+                </v-btn>
+              </div>
 
-          <template #item.requiredBy="{ item }">
-            {{ item.requiredBy ? new Date(item.requiredBy).toLocaleDateString() : '—' }}
-          </template>
+              <div v-else class="pa-2">
+                <div
+                  v-for="plate in orderPlates.get(item.id)"
+                  :key="plate.id"
+                  class="plate-row d-flex align-center ga-3 pa-2 rounded mb-1"
+                >
+                  <span class="text-caption text-medium-emphasis" style="min-width: 60px">
+                    Plate #{{ plate.id }}
+                  </span>
 
-          <template #item.lines="{ item }">
-            {{ item.lines?.length ?? 0 }} line(s)
-          </template>
+                  <v-chip :color="plateStatusColor(plate.status)" size="small" variant="tonal">
+                    {{ plate.status.replace(/_/g, ' ') }}
+                  </v-chip>
 
-          <template #item.actions="{ item }">
-            <div class="d-flex ga-1">
-              <v-btn
-                v-if="item.status === 'RECEIVED'"
-                size="small"
-                variant="tonal"
-                color="success"
-                @click="acceptOrder(item)"
-              >
-                Accept
-              </v-btn>
-              <v-btn
-                v-if="item.status === 'RECEIVED'"
-                size="small"
-                variant="tonal"
-                color="error"
-                @click="confirmRejectOrder(item)"
-              >
-                Reject
-              </v-btn>
-              <v-btn
-                icon
-                size="small"
-                variant="text"
-                @click="viewOrder(item)"
-              >
-                <v-icon>mdi:mdi-eye</v-icon>
-              </v-btn>
+                  <span class="text-body-2 text-medium-emphasis">
+                    {{ plate.printProfile?.name ?? `Profile #${plate.printProfileId}` }}
+                    ·
+                    {{ plate.filamentProfile?.name ?? `Filament #${plate.filamentProfileId}` }}
+                  </span>
+
+                  <span class="text-caption text-medium-emphasis">
+                    {{ plate.items?.length ?? 0 }} part(s)
+                  </span>
+
+                  <v-chip
+                    v-if="plate.status === 'SLICE_FAILED'"
+                    color="error"
+                    size="x-small"
+                    variant="tonal"
+                    :title="plate.statusReason"
+                    style="max-width: 200px; overflow: hidden; text-overflow: ellipsis"
+                  >
+                    {{ plate.statusReason ?? 'Slice failed' }}
+                  </v-chip>
+
+                  <v-spacer />
+
+                  <v-btn
+                    v-if="plate.status === 'PLANNING' || plate.status === 'SLICE_FAILED'"
+                    size="small"
+                    variant="tonal"
+                    color="primary"
+                    :loading="forcingSlice.has(plate.id)"
+                    @click="forceSlice(plate, item.id)"
+                  >
+                    {{ plate.status === 'SLICE_FAILED' ? 'Retry Slice' : 'Force Slice Now' }}
+                  </v-btn>
+
+                  <v-progress-circular
+                    v-if="plate.status === 'SLICING'"
+                    indeterminate
+                    size="18"
+                    color="orange"
+                  />
+                </div>
+              </div>
             </div>
-          </template>
-        </v-data-table>
-      </v-window-item>
+          </td>
+        </tr>
+      </template>
+    </v-data-table>
 
-      <!-- ─── PLANNED PLATES TAB ───────────────────────────────────────────── -->
-      <v-window-item value="plates">
-        <div class="d-flex align-center ga-2 mb-3">
-          <v-select
-            v-model="plateStatusFilter"
-            label="Filter by status"
-            :items="plateStatusItems"
-            density="compact"
-            style="max-width: 220px"
-            clearable
-            hide-details
-            @update:model-value="fetchPlates"
-          />
-          <v-btn icon variant="text" :loading="loadingPlates" @click="fetchPlates">
-            <v-icon>mdi:mdi-refresh</v-icon>
-          </v-btn>
-        </div>
-
-        <v-data-table
-          :headers="plateHeaders"
-          :items="plates"
-          :loading="loadingPlates"
-          item-value="id"
-          hover
-        >
-          <template #item.status="{ item }">
-            <v-chip :color="plateStatusColor(item.status)" size="small" variant="tonal">
-              {{ item.status }}
-            </v-chip>
-          </template>
-
-          <template #item.printProfile="{ item }">
-            {{ item.printProfile?.name ?? `Profile #${item.printProfileId}` }}
-          </template>
-
-          <template #item.filamentProfile="{ item }">
-            <div v-if="item.filamentProfile" class="d-flex align-center ga-1">
-              <div
-                v-if="item.filamentProfile.colorHex"
-                class="color-dot"
-                :style="{ backgroundColor: item.filamentProfile.colorHex }"
-              />
-              {{ item.filamentProfile.name }}
-            </div>
-            <span v-else>Profile #{{ item.filamentProfileId }}</span>
-          </template>
-
-          <template #item.items="{ item }">
-            {{ item.items?.length ?? 0 }} part(s)
-          </template>
-
-          <template #item.createdAt="{ item }">
-            {{ new Date(item.createdAt).toLocaleString() }}
-          </template>
-
-          <template #item.actions="{ item }">
-            <div class="d-flex ga-1">
-              <v-btn
-                v-if="item.status === 'PLANNING'"
-                size="small"
-                variant="tonal"
-                color="primary"
-                @click="forceSlicePlate(item)"
-              >
-                Force Slice
-              </v-btn>
-              <v-btn
-                v-if="!['PRINTING', 'DONE', 'CANCELLED'].includes(item.status)"
-                icon
-                size="small"
-                variant="text"
-                color="error"
-                @click="confirmCancelPlate(item)"
-              >
-                <v-icon>mdi:mdi-cancel</v-icon>
-              </v-btn>
-              <v-btn icon size="small" variant="text" @click="viewPlate(item)">
-                <v-icon>mdi:mdi-eye</v-icon>
-              </v-btn>
-            </div>
-          </template>
-        </v-data-table>
-      </v-window-item>
-    </v-window>
-
-    <!-- ─── INTAKE BUILD ORDER DIALOG ─────────────────────────────────────── -->
+    <!-- ─── INTAKE BUILD ORDER DIALOG ────────────────────────────────────────── -->
     <v-dialog v-model="intakeDialog" max-width="680">
       <v-card>
         <v-card-title class="pt-4 px-6">New Build Order</v-card-title>
@@ -261,131 +272,22 @@
       </v-card>
     </v-dialog>
 
-    <!-- ─── VIEW ORDER DIALOG ──────────────────────────────────────────────── -->
-    <v-dialog v-model="viewOrderDialog" max-width="640">
-      <v-card v-if="selectedOrder">
-        <v-card-title class="pt-4 px-6 d-flex align-center">
-          Order #{{ selectedOrder.id }}
-          <v-chip class="ml-3" :color="orderStatusColor(selectedOrder.status)" size="small" variant="tonal">
-            {{ selectedOrder.status }}
-          </v-chip>
-        </v-card-title>
-        <v-card-text class="px-6">
-          <div class="text-body-2 mb-1" v-if="selectedOrder.externalOrderId">
-            External ID: <strong>{{ selectedOrder.externalOrderId }}</strong>
-          </div>
-          <div class="text-body-2 mb-1" v-if="selectedOrder.requiredBy">
-            Required by: <strong>{{ new Date(selectedOrder.requiredBy).toLocaleDateString() }}</strong>
-          </div>
-          <div class="text-body-2 mb-3">
-            Priority: <strong>{{ Math.round(selectedOrder.dynamicPriority) }}/100</strong>
-          </div>
-
-          <v-table density="compact">
-            <thead>
-              <tr>
-                <th>Part ID</th>
-                <th>Qty</th>
-                <th>Done</th>
-                <th>Assembly Group</th>
-                <th>Resolved</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="line in selectedOrder.lines" :key="line.id">
-                <td>{{ line.externalPartId }}</td>
-                <td>{{ line.quantity }}</td>
-                <td>{{ line.completedQuantity }}</td>
-                <td>{{ line.assemblyGroup ?? '—' }}</td>
-                <td>
-                  <v-icon :color="line.printPartId ? 'success' : 'error'" size="small">
-                    {{ line.printPartId ? 'check_circle' : 'cancel' }}
-                  </v-icon>
-                </td>
-              </tr>
-            </tbody>
-          </v-table>
-        </v-card-text>
-        <v-card-actions class="px-6 pb-4">
-          <v-spacer />
-          <v-btn variant="text" @click="viewOrderDialog = false">Close</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <!-- ─── REJECT ORDER DIALOG ────────────────────────────────────────────── -->
+    <!-- ─── REJECT / CANCEL ORDER DIALOG ──────────────────────────────────────── -->
     <v-dialog v-model="rejectDialog" max-width="420">
       <v-card>
-        <v-card-title>Reject Order?</v-card-title>
+        <v-card-title>{{ rejectingOrder?.status === 'RECEIVED' ? 'Reject Order?' : 'Cancel Order?' }}</v-card-title>
         <v-card-text>
           <v-text-field v-model="rejectReason" label="Reason (optional)" density="compact" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
           <v-btn variant="text" @click="rejectDialog = false">Cancel</v-btn>
-          <v-btn color="error" @click="submitReject">Reject</v-btn>
+          <v-btn color="error" :loading="rejectingLoading" @click="submitReject">Confirm</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
-    <!-- ─── VIEW PLATE DIALOG ──────────────────────────────────────────────── -->
-    <v-dialog v-model="viewPlateDialog" max-width="600">
-      <v-card v-if="selectedPlate">
-        <v-card-title class="pt-4 px-6 d-flex align-center">
-          Plate #{{ selectedPlate.id }}
-          <v-chip class="ml-3" :color="plateStatusColor(selectedPlate.status)" size="small" variant="tonal">
-            {{ selectedPlate.status }}
-          </v-chip>
-        </v-card-title>
-        <v-card-text class="px-6">
-          <div class="text-body-2 mb-1">
-            Profile: <strong>{{ selectedPlate.printProfile?.name ?? `#${selectedPlate.printProfileId}` }}</strong>
-          </div>
-          <div class="text-body-2 mb-1">
-            Filament: <strong>{{ selectedPlate.filamentProfile?.name ?? `#${selectedPlate.filamentProfileId}` }}</strong>
-          </div>
-          <div class="text-body-2 mb-3">
-            Created: <strong>{{ new Date(selectedPlate.createdAt).toLocaleString() }}</strong>
-          </div>
-
-          <v-table density="compact">
-            <thead>
-              <tr>
-                <th>Part</th>
-                <th>Qty</th>
-                <th>Set</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in selectedPlate.items" :key="item.id">
-                <td>{{ item.printPart?.externalPartId ?? `Part #${item.printPartId}` }}</td>
-                <td>{{ item.quantity }}</td>
-                <td>{{ item.setIndex != null ? item.setIndex : '—' }}</td>
-              </tr>
-            </tbody>
-          </v-table>
-        </v-card-text>
-        <v-card-actions class="px-6 pb-4">
-          <v-spacer />
-          <v-btn variant="text" @click="viewPlateDialog = false">Close</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <!-- ─── CANCEL PLATE CONFIRM ───────────────────────────────────────────── -->
-    <v-dialog v-model="cancelPlateDialog" max-width="420">
-      <v-card>
-        <v-card-title>Cancel Plate?</v-card-title>
-        <v-card-text>Cancel Plate #{{ cancellingPlate?.id }}?</v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="cancelPlateDialog = false">Cancel</v-btn>
-          <v-btn color="error" @click="submitCancelPlate">Confirm</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <!-- ─── SNACKBAR ───────────────────────────────────────────────────────── -->
+    <!-- ─── SNACKBAR ──────────────────────────────────────────────────────────── -->
     <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
       {{ snackbarMessage }}
     </v-snackbar>
@@ -406,10 +308,6 @@ import {
   type CreateBuildOrderLineDto,
 } from '@/backend/build-order-workflow.service'
 
-// ─── Tab ─────────────────────────────────────────────────────────────────────
-
-const tab = ref('orders')
-
 // ─── Snackbar ─────────────────────────────────────────────────────────────────
 
 const snackbar = ref(false)
@@ -422,7 +320,7 @@ function notify(msg: string, color = 'success') {
   snackbar.value = true
 }
 
-// ─── Build Orders ─────────────────────────────────────────────────────────────
+// ─── Orders ───────────────────────────────────────────────────────────────────
 
 const orders = ref<BuildOrder[]>([])
 const loadingOrders = ref(false)
@@ -437,10 +335,11 @@ const orderHeaders = [
   { title: 'ID', key: 'id', width: 60 },
   { title: 'External ID', key: 'externalOrderId' },
   { title: 'Status', key: 'status' },
-  { title: 'Priority', key: 'dynamicPriority', width: 140 },
+  { title: 'Priority', key: 'dynamicPriority', width: 160 },
   { title: 'Required By', key: 'requiredBy' },
   { title: 'Lines', key: 'lines' },
-  { title: 'Actions', key: 'actions', sortable: false },
+  { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const },
+  { title: '', key: 'data-table-expand', width: 48 },
 ]
 
 function orderStatusColor(status: BuildOrderStatus): string {
@@ -461,12 +360,87 @@ async function fetchOrders() {
   loadingOrders.value = true
   try {
     orders.value = await BuildOrderService.list(orderStatusFilter.value)
-  } catch (e) {
+  } catch {
     notify('Failed to load build orders', 'error')
   } finally {
     loadingOrders.value = false
   }
 }
+
+// ─── Plates per order (lazy loaded on expand) ─────────────────────────────────
+
+const expanded = ref<number[]>([])
+const orderPlates = ref(new Map<number, PlannedPlate[]>())
+const loadingPlatesFor = ref(new Set<number>())
+const refreshingPlates = ref(new Set<number>())
+const forcingSlice = ref(new Set<number>())
+
+async function fetchPlatesForOrder(orderId: number) {
+  loadingPlatesFor.value = new Set([...loadingPlatesFor.value, orderId])
+  try {
+    const plates = await PlannedPlateService.listForOrder(orderId)
+    orderPlates.value = new Map([...orderPlates.value, [orderId, plates]])
+  } catch {
+    notify(`Failed to load plates for order ${orderId}`, 'error')
+  } finally {
+    const next = new Set(loadingPlatesFor.value)
+    next.delete(orderId)
+    loadingPlatesFor.value = next
+  }
+}
+
+function onExpand(expandedIds: number[]) {
+  for (const id of expandedIds) {
+    if (!orderPlates.value.has(id)) {
+      fetchPlatesForOrder(id)
+    }
+  }
+}
+
+async function refreshPlates(orderId: number) {
+  refreshingPlates.value = new Set([...refreshingPlates.value, orderId])
+  try {
+    const plates = await PlannedPlateService.listForOrder(orderId)
+    orderPlates.value = new Map([...orderPlates.value, [orderId, plates]])
+  } catch {
+    notify('Failed to refresh plates', 'error')
+  } finally {
+    const next = new Set(refreshingPlates.value)
+    next.delete(orderId)
+    refreshingPlates.value = next
+  }
+}
+
+function plateStatusColor(status: PlannedPlateStatus): string {
+  const map: Record<PlannedPlateStatus, string> = {
+    PLANNING: 'blue-grey',
+    READY_TO_SLICE: 'blue',
+    SLICING: 'orange',
+    SLICE_FAILED: 'error',
+    QUEUED: 'teal',
+    PRINTING: 'purple',
+    DONE: 'success',
+    CANCELLED: 'grey',
+  }
+  return map[status] ?? 'grey'
+}
+
+async function forceSlice(plate: PlannedPlate, orderId: number) {
+  forcingSlice.value = new Set([...forcingSlice.value, plate.id])
+  try {
+    await PlannedPlateService.forceSlice(plate.id)
+    notify(`Plate #${plate.id} queued for slicing`)
+    await refreshPlates(orderId)
+  } catch (e: any) {
+    notify(e?.response?.data?.error ?? 'Failed to queue plate', 'error')
+  } finally {
+    const next = new Set(forcingSlice.value)
+    next.delete(plate.id)
+    forcingSlice.value = next
+  }
+}
+
+// ─── Accept / Reject ─────────────────────────────────────────────────────────
 
 async function acceptOrder(order: BuildOrder) {
   try {
@@ -482,6 +456,7 @@ async function acceptOrder(order: BuildOrder) {
 const rejectDialog = ref(false)
 const rejectingOrder = ref<BuildOrder | null>(null)
 const rejectReason = ref('')
+const rejectingLoading = ref(false)
 
 function confirmRejectOrder(order: BuildOrder) {
   rejectingOrder.value = order
@@ -491,27 +466,21 @@ function confirmRejectOrder(order: BuildOrder) {
 
 async function submitReject() {
   if (!rejectingOrder.value) return
+  rejectingLoading.value = true
   try {
     const updated = await BuildOrderService.reject(rejectingOrder.value.id, rejectReason.value || undefined)
     const idx = orders.value.findIndex(o => o.id === rejectingOrder.value!.id)
     if (idx !== -1) orders.value[idx] = updated
-    notify('Order rejected')
+    notify('Order cancelled')
   } catch (e: any) {
-    notify(e?.response?.data?.error ?? 'Failed to reject order', 'error')
+    notify(e?.response?.data?.error ?? 'Failed to cancel order', 'error')
   } finally {
+    rejectingLoading.value = false
     rejectDialog.value = false
   }
 }
 
-const viewOrderDialog = ref(false)
-const selectedOrder = ref<BuildOrder | null>(null)
-
-function viewOrder(order: BuildOrder) {
-  selectedOrder.value = order
-  viewOrderDialog.value = true
-}
-
-// ─── Intake Dialog ────────────────────────────────────────────────────────────
+// ─── Intake dialog ────────────────────────────────────────────────────────────
 
 const intakeDialog = ref(false)
 const savingOrder = ref(false)
@@ -526,11 +495,7 @@ const orderForm = ref<{
   externalOrderId: string
   requiredBy: string
   lines: OrderFormLine[]
-}>({
-  externalOrderId: '',
-  requiredBy: '',
-  lines: [],
-})
+}>({ externalOrderId: '', requiredBy: '', lines: [] })
 
 function openIntakeDialog() {
   orderForm.value = { externalOrderId: '', requiredBy: '', lines: [] }
@@ -564,7 +529,7 @@ async function submitOrder() {
     })
     orders.value.unshift(order)
     intakeDialog.value = false
-    notify('Build order created')
+    notify(`Order #${order.id} created${order.status === 'ACCEPTED' ? ' and accepted' : ''}`)
   } catch (e: any) {
     notify(e?.response?.data?.error ?? 'Failed to create order', 'error')
   } finally {
@@ -572,121 +537,34 @@ async function submitOrder() {
   }
 }
 
-// ─── Parts (kept for intake autocomplete) ────────────────────────────────────
+// ─── Parts (for intake autocomplete) ─────────────────────────────────────────
 
 const parts = ref<PrintPart[]>([])
 
 async function fetchParts() {
   try {
     parts.value = await PrintPartService.list()
-  } catch (_) {
-    // non-critical; autocomplete just stays empty
-  }
+  } catch (_) {}
 }
 
 const partAutocompleteItems = computed(() =>
   parts.value.map(p => ({ externalPartId: p.externalPartId, label: `${p.name} — ${p.externalPartId}` }))
 )
 
-// ─── Planned Plates ───────────────────────────────────────────────────────────
-
-const plates = ref<PlannedPlate[]>([])
-const loadingPlates = ref(false)
-const plateStatusFilter = ref<PlannedPlateStatus | undefined>(undefined)
-
-const plateStatusItems = [
-  'PLANNING', 'READY_TO_SLICE', 'SLICING', 'SLICE_FAILED', 'QUEUED', 'PRINTING', 'DONE', 'CANCELLED',
-]
-
-const plateHeaders = [
-  { title: 'ID', key: 'id', width: 60 },
-  { title: 'Status', key: 'status' },
-  { title: 'Print Profile', key: 'printProfile' },
-  { title: 'Filament', key: 'filamentProfile' },
-  { title: 'Parts', key: 'items' },
-  { title: 'Created', key: 'createdAt' },
-  { title: 'Actions', key: 'actions', sortable: false },
-]
-
-function plateStatusColor(status: PlannedPlateStatus): string {
-  const map: Record<PlannedPlateStatus, string> = {
-    PLANNING: 'blue-grey',
-    READY_TO_SLICE: 'blue',
-    SLICING: 'orange',
-    SLICE_FAILED: 'error',
-    QUEUED: 'teal',
-    PRINTING: 'purple',
-    DONE: 'success',
-    CANCELLED: 'grey',
-  }
-  return map[status] ?? 'grey'
-}
-
-async function fetchPlates() {
-  loadingPlates.value = true
-  try {
-    plates.value = await PlannedPlateService.list(plateStatusFilter.value)
-  } catch (e) {
-    notify('Failed to load plates', 'error')
-  } finally {
-    loadingPlates.value = false
-  }
-}
-
-async function forceSlicePlate(plate: PlannedPlate) {
-  try {
-    const updated = await PlannedPlateService.forceSlice(plate.id)
-    const idx = plates.value.findIndex(p => p.id === plate.id)
-    if (idx !== -1) plates.value[idx] = updated
-    notify('Plate queued for slicing')
-  } catch (e: any) {
-    notify(e?.response?.data?.error ?? 'Failed to force-slice plate', 'error')
-  }
-}
-
-const viewPlateDialog = ref(false)
-const selectedPlate = ref<PlannedPlate | null>(null)
-
-function viewPlate(plate: PlannedPlate) {
-  selectedPlate.value = plate
-  viewPlateDialog.value = true
-}
-
-const cancelPlateDialog = ref(false)
-const cancellingPlate = ref<PlannedPlate | null>(null)
-
-function confirmCancelPlate(plate: PlannedPlate) {
-  cancellingPlate.value = plate
-  cancelPlateDialog.value = true
-}
-
-async function submitCancelPlate() {
-  if (!cancellingPlate.value) return
-  try {
-    const updated = await PlannedPlateService.cancel(cancellingPlate.value.id)
-    const idx = plates.value.findIndex(p => p.id === cancellingPlate.value!.id)
-    if (idx !== -1) plates.value[idx] = updated
-    notify('Plate cancelled')
-  } catch (e: any) {
-    notify(e?.response?.data?.error ?? 'Failed to cancel plate', 'error')
-  } finally {
-    cancelPlateDialog.value = false
-  }
-}
-
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
-onMounted(async () => {
-  await Promise.all([fetchOrders(), fetchParts(), fetchPlates()])
+onMounted(() => {
+  fetchOrders()
+  fetchParts()
 })
 </script>
 
 <style scoped>
-.color-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  flex-shrink: 0;
+.plate-panel {
+  background: rgba(var(--v-theme-surface-variant), 0.3);
+  border-left: 3px solid rgba(var(--v-theme-primary), 0.3);
+}
+.plate-row {
+  background: rgba(var(--v-theme-surface), 0.8);
 }
 </style>

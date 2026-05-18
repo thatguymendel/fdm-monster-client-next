@@ -329,6 +329,14 @@ export class PlannedPlateService {
     return data.plates
   }
 
+  static async listForOrder(buildOrderId: number): Promise<PlannedPlate[]> {
+    const client = await getHttpClient()
+    const { data } = await client.get<{ plates: PlannedPlate[] }>('/api/v2/planned-plates', {
+      params: { buildOrderId },
+    })
+    return data.plates
+  }
+
   static async get(id: number): Promise<PlannedPlate> {
     const client = await getHttpClient()
     const { data } = await client.get<PlannedPlate>(`/api/v2/planned-plates/${id}`)
