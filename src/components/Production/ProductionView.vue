@@ -30,7 +30,7 @@
         variant="tonal"
         prepend-icon="mdi:mdi-clipboard-list"
       >
-        Queued: {{ slicerStatus?.platesReadyToSlice ?? 0 }}
+        Queued: {{ slicerStatus?.platesQueued ?? 0 }}
       </v-chip>
       <v-chip
         v-if="!slicerStatus?.configured"

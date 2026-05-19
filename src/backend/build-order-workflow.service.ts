@@ -373,6 +373,7 @@ export interface SlicerConfigResponse {
   config: SlicerConfig | null
   platesSlicing: number
   platesReadyToSlice: number
+  platesQueued: number
 }
 
 export interface SlicerTestResult {
