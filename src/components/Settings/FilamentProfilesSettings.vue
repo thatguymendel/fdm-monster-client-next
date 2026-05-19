@@ -103,7 +103,16 @@
           <div class="text-caption text-medium-emphasis mb-2">
             SLICER INTEGRATION (optional)
           </div>
-          <div class="text-body-2 text-medium-emphasis mb-2">Filament profile (.json)</div>
+          <v-select
+            v-model="form.slicerType"
+            label="Slicer"
+            :items="[{ title: 'OrcaSlicer', value: 'orca' }, { title: 'PrusaSlicer', value: 'prusa' }]"
+            density="compact"
+            class="mb-2"
+          />
+          <div class="text-body-2 text-medium-emphasis mb-2">
+            {{ form.slicerType === 'prusa' ? 'Filament profile (.ini)' : 'Filament profile (.json)' }}
+          </div>
           <ProfileFileUpload
             :path="form.filamentProfilePath"
             type="filament"
@@ -176,6 +185,7 @@ const form = ref({
   colorHex: null as string | null,
   brand: null as string | null,
   defaultWeightGrams: null as number | null,
+  slicerType: 'orca' as 'orca' | 'prusa',
   filamentProfilePath: null as string | null,
 })
 
@@ -206,9 +216,10 @@ function openDialog(preset?: FilamentPreset) {
         colorHex: preset.colorHex,
         brand: preset.brand,
         defaultWeightGrams: preset.defaultWeightGrams,
+        slicerType: preset.slicerType ?? 'orca',
         filamentProfilePath: preset.filamentProfilePath ?? null,
       }
-    : { name: '', material: 'PLA', colorName: '', colorHex: null, brand: null, defaultWeightGrams: null, filamentProfilePath: null }
+    : { name: '', material: 'PLA', colorName: '', colorHex: null, brand: null, defaultWeightGrams: null, slicerType: 'orca' as const, filamentProfilePath: null }
   dialog.value = true
 }
 
@@ -222,6 +233,7 @@ async function save() {
       colorHex: form.value.colorHex || null,
       brand: form.value.brand || null,
       defaultWeightGrams: form.value.defaultWeightGrams,
+      slicerType: form.value.slicerType,
       filamentProfilePath: form.value.filamentProfilePath || null,
     }
 

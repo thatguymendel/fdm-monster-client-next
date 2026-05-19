@@ -52,7 +52,17 @@
         <v-card-text class="px-6">
           <v-text-field v-model="form.name" label="Name" density="compact" class="mb-3" />
 
-          <div class="text-caption text-medium-emphasis mb-1">PROCESS PROFILE (.json)</div>
+          <v-select
+            v-model="form.slicerType"
+            label="Slicer"
+            :items="[{ title: 'OrcaSlicer', value: 'orca' }, { title: 'PrusaSlicer', value: 'prusa' }]"
+            density="compact"
+            class="mb-3"
+          />
+
+          <div class="text-caption text-medium-emphasis mb-1">
+            {{ form.slicerType === 'prusa' ? 'COMBINED CONFIG (.ini — print + printer settings)' : 'PROCESS PROFILE (.json)' }}
+          </div>
           <ProfileFileUpload
             :path="form.processProfilePath"
             type="process"
@@ -60,13 +70,15 @@
             @uploaded="form.processProfilePath = $event"
           />
 
-          <div class="text-caption text-medium-emphasis mb-1">PRINTER PROFILE (.json)</div>
-          <ProfileFileUpload
-            :path="form.printerProfilePath"
-            type="machine"
-            class="mb-3"
-            @uploaded="form.printerProfilePath = $event"
-          />
+          <template v-if="form.slicerType !== 'prusa'">
+            <div class="text-caption text-medium-emphasis mb-1">PRINTER PROFILE (.json)</div>
+            <ProfileFileUpload
+              :path="form.printerProfilePath ?? undefined"
+              type="machine"
+              class="mb-3"
+              @uploaded="form.printerProfilePath = $event"
+            />
+          </template>
 
           <v-divider class="mb-3" />
           <v-row>
@@ -107,7 +119,7 @@
           <v-btn
             color="primary"
             :loading="saving"
-            :disabled="!form.name || !form.processProfilePath || !form.printerProfilePath"
+            :disabled="!form.name || !form.processProfilePath || (form.slicerType !== 'prusa' && !form.printerProfilePath)"
             @click="save"
           >
             Save
@@ -160,6 +172,7 @@ const headers = [
 
 const form = ref<CreatePrintProfileDto>({
   name: '',
+  slicerType: 'orca',
   processProfilePath: '',
   printerProfilePath: '',
   nozzleType: '',
@@ -190,6 +203,7 @@ function openDialog(profile?: PrintProfile) {
   form.value = profile
     ? {
         name: profile.name,
+        slicerType: profile.slicerType ?? 'orca',
         processProfilePath: profile.processProfilePath,
         printerProfilePath: profile.printerProfilePath,
         nozzleType: profile.nozzleType,
@@ -197,20 +211,24 @@ function openDialog(profile?: PrintProfile) {
         bedWidthMm: profile.bedWidthMm,
         bedDepthMm: profile.bedDepthMm,
       }
-    : { name: '', processProfilePath: '', printerProfilePath: '', nozzleType: '', nozzleDiameterMm: undefined, bedWidthMm: undefined, bedDepthMm: undefined }
+    : { name: '', slicerType: 'orca', processProfilePath: '', printerProfilePath: '', nozzleType: '', nozzleDiameterMm: undefined, bedWidthMm: undefined, bedDepthMm: undefined }
   dialog.value = true
 }
 
 async function save() {
   saving.value = true
   try {
+    const dto = {
+      ...form.value,
+      printerProfilePath: form.value.slicerType === 'prusa' ? null : form.value.printerProfilePath,
+    }
     if (editing.value) {
-      const updated = await PrintProfileService.update(editing.value.id, form.value)
+      const updated = await PrintProfileService.update(editing.value.id, dto)
       const idx = profiles.value.findIndex(p => p.id === editing.value!.id)
       if (idx !== -1) profiles.value[idx] = updated
       notify('Profile updated')
     } else {
-      const created = await PrintProfileService.create(form.value)
+      const created = await PrintProfileService.create(dto)
       profiles.value.push(created)
       notify('Profile created')
     }

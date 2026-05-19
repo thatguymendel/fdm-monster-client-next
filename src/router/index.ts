@@ -31,6 +31,7 @@ import ApiKeysSettings from '@/components/Settings/ApiKeysSettings.vue'
 import DebugSocketSettings from "@/components/Settings/DebugSocketSettings.vue";
 import AboutSettings from "@/components/Settings/AboutSettings.vue";
 import OrcaSlicerSettings from "@/components/Settings/OrcaSlicerSettings.vue";
+import PrusaSlicerSettings from "@/components/Settings/PrusaSlicerSettings.vue";
 import PrintProfilesSettings from "@/components/Settings/PrintProfilesSettings.vue";
 import FilamentProfilesSettings from "@/components/Settings/FilamentProfilesSettings.vue";
 
@@ -166,6 +167,11 @@ const router = createRouter({
           path: "orca-slicer",
           meta: NeedsAuth,
           component: OrcaSlicerSettings,
+        },
+        {
+          path: "prusa-slicer",
+          meta: NeedsAuth,
+          component: PrusaSlicerSettings,
         },
         {
           path: "print-profiles",

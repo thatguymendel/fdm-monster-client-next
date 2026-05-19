@@ -10,6 +10,7 @@ export const settingPage = {
   experimental: "experimental",
   slicer: "slicer",
   orcaSlicer: "orcaSlicer",
+  prusaSlicer: "prusaSlicer",
   printProfiles: "printProfiles",
   filamentProfiles: "filamentProfiles",
   apiKeys: "apiKeys",
@@ -83,6 +84,12 @@ export const settingsPage = {
     title: "OrcaSlicer",
     icon: "mdi:mdi-printer-3d-nozzle",
     path: "/settings/orca-slicer",
+    divider: false,
+  },
+  [settingPage.prusaSlicer]: {
+    title: "PrusaSlicer",
+    icon: "mdi:mdi-printer-3d",
+    path: "/settings/prusa-slicer",
     divider: false,
   },
   [settingPage.printProfiles]: {

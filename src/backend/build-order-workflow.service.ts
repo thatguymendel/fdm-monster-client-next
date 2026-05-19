@@ -6,8 +6,9 @@ import type { PartFile, PartFolder } from './part-catalog.service'
 export interface PrintProfile {
   id: number
   name: string
+  slicerType: 'orca' | 'prusa'
   processProfilePath: string
-  printerProfilePath: string
+  printerProfilePath: string | null
   compatiblePrinterTypes: string[]
   nozzleType: string
   nozzleDiameterMm: number
@@ -19,8 +20,9 @@ export interface PrintProfile {
 
 export interface CreatePrintProfileDto {
   name: string
+  slicerType?: 'orca' | 'prusa'
   processProfilePath: string
-  printerProfilePath: string
+  printerProfilePath?: string | null
   compatiblePrinterTypes?: string[]
   nozzleType?: string
   nozzleDiameterMm?: number
@@ -398,6 +400,38 @@ export class SlicerConfigService {
   static async testConnection(): Promise<SlicerTestResult> {
     const client = await getHttpClient()
     const { data } = await client.post<SlicerTestResult>('/api/v2/slicer-config/test')
+    return data
+  }
+}
+
+// ─── PrusaSlicer Config ───────────────────────────────────────────────────────
+
+export interface PrusaSlicerConfig {
+  binaryPath: string
+  timeoutMs?: number
+}
+
+export interface PrusaSlicerConfigResponse {
+  configured: boolean
+  config: PrusaSlicerConfig | null
+}
+
+export class PrusaSlicerService {
+  static async getConfig(): Promise<PrusaSlicerConfigResponse> {
+    const client = await getHttpClient()
+    const { data } = await client.get<PrusaSlicerConfigResponse>('/api/v2/prusa-slicer')
+    return data
+  }
+
+  static async setConfig(config: PrusaSlicerConfig): Promise<PrusaSlicerConfigResponse> {
+    const client = await getHttpClient()
+    const { data } = await client.post<PrusaSlicerConfigResponse>('/api/v2/prusa-slicer', config)
+    return data
+  }
+
+  static async testConnection(): Promise<SlicerTestResult> {
+    const client = await getHttpClient()
+    const { data } = await client.post<SlicerTestResult>('/api/v2/prusa-slicer/test')
     return data
   }
 }

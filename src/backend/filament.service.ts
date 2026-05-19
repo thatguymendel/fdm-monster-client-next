@@ -24,7 +24,8 @@ export interface FilamentPreset {
   colorName: string
   colorHex: string | null
   defaultWeightGrams: number | null
-  /** Path to OrcaSlicer filament profile JSON on the FDM Monster server. Optional — only needed for auto-slicing. */
+  slicerType: 'orca' | 'prusa'
+  /** Path to slicer filament profile (.json for OrcaSlicer, .ini for PrusaSlicer). Optional — only needed for auto-slicing. */
   filamentProfilePath?: string | null
   createdAt: string
   updatedAt: string
@@ -45,6 +46,7 @@ export interface UpdateFilamentPresetDto {
   colorName?: string
   colorHex?: string | null
   defaultWeightGrams?: number | null
+  slicerType?: 'orca' | 'prusa'
   filamentProfilePath?: string | null
 }
 

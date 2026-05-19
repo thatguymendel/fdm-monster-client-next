@@ -3,7 +3,7 @@
     <input
       ref="fileInput"
       type="file"
-      accept=".json"
+      accept=".json,.ini"
       class="d-none"
       @change="onFileChange"
     />
@@ -14,7 +14,7 @@
       prepend-icon="mdi:mdi-upload"
       @click="fileInput?.click()"
     >
-      {{ fileName ? 'Replace' : 'Upload .json' }}
+      {{ fileName ? 'Replace' : 'Upload file' }}
     </v-btn>
     <span v-if="fileName" class="text-body-2 text-medium-emphasis text-truncate" style="max-width: 260px">
       {{ fileName }}
