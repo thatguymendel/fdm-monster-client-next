@@ -314,14 +314,23 @@ export interface PlannedPlateItem {
   setIndex: number | null
 }
 
+export interface PlannedPrintJob {
+  id: number
+  printerName: string | null
+  status: string
+  progress: number | null
+}
+
 export interface PlannedPlate {
   id: number
   status: PlannedPlateStatus
+  statusReason: string | null
   printProfileId: number
   filamentProfileId: number
   printProfile: PrintProfile | null
   filamentProfile: FilamentProfile | null
   printJobId: number | null
+  printJob: PlannedPrintJob | null
   createdAt: string
   slicingStartedAt: string | null
   slicingCompletedAt: string | null

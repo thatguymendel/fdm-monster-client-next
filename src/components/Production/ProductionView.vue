@@ -12,7 +12,7 @@
         variant="tonal"
         prepend-icon="mdi:mdi-printer-3d-nozzle"
       >
-        Slicer: {{ slicerStatus?.configured ? (slicerStatus.config?.mode === 'remote' ? 'Connected (remote)' : 'Connected (local)') : 'Not configured' }}
+        Slicer: {{ slicerStatus?.configured ? (slicerStatus.config?.mode === 'remote' ? 'Connected (remote)' : 'Configured (local)') : 'Not configured' }}
       </v-chip>
       <v-chip
         v-if="slicerStatus?.configured"
@@ -154,85 +154,160 @@
         </div>
       </template>
 
-      <!-- ─── Expanded row: plates for this order ──────────────────────────── -->
+      <!-- ─── Expanded row: lines summary + plates ─────────────────────────── -->
       <template #expanded-row="{ item, columns }">
         <tr>
           <td :colspan="columns.length" class="pa-0">
             <div class="plate-panel">
+
+              <!-- Lines summary -->
+              <div class="pa-3 pb-1">
+                <div class="d-flex align-center mb-2">
+                  <span class="text-caption text-medium-emphasis font-weight-bold" style="letter-spacing: 0.05em">
+                    ORDER LINES
+                  </span>
+                  <v-spacer />
+                  <v-btn
+                    icon
+                    variant="text"
+                    size="x-small"
+                    :loading="refreshingPlates.has(item.id)"
+                    @click="refreshPlates(item.id)"
+                  >
+                    <v-icon size="16">mdi:mdi-refresh</v-icon>
+                  </v-btn>
+                </div>
+                <div
+                  v-for="line in item.lines"
+                  :key="line.id"
+                  class="d-flex align-center ga-2 mb-1 text-body-2"
+                >
+                  <span class="font-weight-medium" style="min-width: 160px">
+                    {{ line.printPart?.name ?? line.externalPartId }}
+                  </span>
+                  <span class="text-medium-emphasis text-caption">
+                    {{ line.externalPartId }}
+                  </span>
+                  <v-spacer />
+                  <span class="text-caption text-medium-emphasis">
+                    {{ line.completedQuantity }} / {{ line.quantity }} completed
+                  </span>
+                  <v-chip
+                    :color="line.completedQuantity >= line.quantity ? 'success' : line.completedQuantity > 0 ? 'orange' : 'blue-grey'"
+                    size="x-small"
+                    variant="tonal"
+                  >
+                    {{ line.completedQuantity >= line.quantity ? 'Done' : line.completedQuantity > 0 ? 'In progress' : 'Pending' }}
+                  </v-chip>
+                </div>
+              </div>
+
+              <v-divider />
+
+              <!-- Plates -->
               <div v-if="loadingPlatesFor.has(item.id)" class="pa-4 text-center text-medium-emphasis">
                 <v-progress-circular indeterminate size="20" class="mr-2" />
                 Loading plates...
               </div>
 
-              <div v-else-if="!orderPlates.get(item.id)?.length" class="pa-4 text-medium-emphasis text-body-2">
+              <div v-else-if="!orderPlates.get(item.id)?.length" class="pa-3 text-medium-emphasis text-body-2">
                 <v-icon size="small" class="mr-1">mdi:mdi-clock-outline</v-icon>
                 No plates yet — plate optimizer runs every 5 minutes for ACCEPTED orders.
-                <v-btn
-                  v-if="item.status === 'ACCEPTED'"
-                  variant="text"
-                  size="small"
-                  color="primary"
-                  class="ml-1"
-                  :loading="refreshingPlates.has(item.id)"
-                  @click="refreshPlates(item.id)"
-                >
-                  Check now
-                </v-btn>
               </div>
 
               <div v-else class="pa-2">
+                <div class="text-caption text-medium-emphasis font-weight-bold mb-2 px-2" style="letter-spacing: 0.05em">
+                  PLATES
+                </div>
                 <div
                   v-for="plate in orderPlates.get(item.id)"
                   :key="plate.id"
-                  class="plate-row d-flex align-center ga-3 pa-2 rounded mb-1"
+                  class="plate-row pa-2 rounded mb-1"
                 >
-                  <span class="text-caption text-medium-emphasis" style="min-width: 60px">
-                    Plate #{{ plate.id }}
-                  </span>
+                  <!-- Top row: ID, status, profile, actions -->
+                  <div class="d-flex align-center ga-2 flex-wrap">
+                    <span class="text-caption text-medium-emphasis" style="min-width: 60px">
+                      Plate #{{ plate.id }}
+                    </span>
 
-                  <v-chip :color="plateStatusColor(plate.status)" size="small" variant="tonal">
-                    {{ plate.status.replace(/_/g, ' ') }}
-                  </v-chip>
+                    <v-chip :color="plateStatusColor(plate.status)" size="small" variant="tonal">
+                      {{ plate.status.replace(/_/g, ' ') }}
+                    </v-chip>
 
-                  <span class="text-body-2 text-medium-emphasis">
-                    {{ plate.printProfile?.name ?? `Profile #${plate.printProfileId}` }}
-                    ·
-                    {{ plate.filamentProfile?.name ?? `Filament #${plate.filamentProfileId}` }}
-                  </span>
+                    <span class="text-body-2 text-medium-emphasis">
+                      {{ plate.printProfile?.name ?? `Profile #${plate.printProfileId}` }}
+                      ·
+                      {{ plate.filamentProfile?.name ?? `Filament #${plate.filamentProfileId}` }}
+                    </span>
 
-                  <span class="text-caption text-medium-emphasis">
-                    {{ plate.items?.length ?? 0 }} part(s)
-                  </span>
+                    <!-- Printer chip -->
+                    <v-chip
+                      v-if="plate.printJob?.printerName"
+                      :color="plate.status === 'PRINTING' ? 'purple' : 'teal'"
+                      size="small"
+                      variant="tonal"
+                      prepend-icon="mdi:mdi-printer"
+                    >
+                      {{ plate.printJob.printerName }}
+                      <span v-if="plate.status === 'PRINTING' && plate.printJob.progress != null" class="ml-1">
+                        · {{ plate.printJob.progress }}%
+                      </span>
+                    </v-chip>
 
-                  <v-chip
-                    v-if="plate.status === 'SLICE_FAILED'"
-                    color="error"
-                    size="x-small"
-                    variant="tonal"
-                    :title="plate.statusReason"
-                    style="max-width: 200px; overflow: hidden; text-overflow: ellipsis"
-                  >
-                    {{ plate.statusReason ?? 'Slice failed' }}
-                  </v-chip>
+                    <v-chip
+                      v-if="plate.status === 'SLICE_FAILED'"
+                      color="error"
+                      size="x-small"
+                      variant="tonal"
+                      :title="plate.statusReason ?? undefined"
+                      style="max-width: 200px; overflow: hidden; text-overflow: ellipsis"
+                    >
+                      {{ plate.statusReason ?? 'Slice failed' }}
+                    </v-chip>
 
-                  <v-spacer />
+                    <v-spacer />
 
-                  <v-btn
-                    v-if="plate.status === 'PLANNING' || plate.status === 'SLICE_FAILED'"
-                    size="small"
-                    variant="tonal"
-                    color="primary"
-                    :loading="forcingSlice.has(plate.id)"
-                    @click="forceSlice(plate, item.id)"
-                  >
-                    {{ plate.status === 'SLICE_FAILED' ? 'Retry Slice' : 'Force Slice Now' }}
-                  </v-btn>
+                    <v-btn
+                      v-if="plate.status === 'PLANNING' || plate.status === 'SLICE_FAILED'"
+                      size="small"
+                      variant="tonal"
+                      color="primary"
+                      :loading="forcingSlice.has(plate.id)"
+                      @click="forceSlice(plate, item.id)"
+                    >
+                      {{ plate.status === 'SLICE_FAILED' ? 'Retry Slice' : 'Force Slice Now' }}
+                    </v-btn>
 
-                  <v-progress-circular
-                    v-if="plate.status === 'SLICING'"
-                    indeterminate
-                    size="18"
-                    color="orange"
+                    <v-progress-circular
+                      v-if="plate.status === 'SLICING'"
+                      indeterminate
+                      size="18"
+                      color="orange"
+                    />
+                  </div>
+
+                  <!-- Part chips row -->
+                  <div v-if="plate.items?.length" class="d-flex flex-wrap ga-1 mt-1 ml-1">
+                    <v-chip
+                      v-for="item2 in plate.items"
+                      :key="item2.id"
+                      size="x-small"
+                      variant="outlined"
+                      color="grey"
+                    >
+                      {{ item2.printPart?.name ?? `Part #${item2.printPartId}` }}
+                      <span v-if="item2.quantity > 1" class="ml-1 font-weight-bold">×{{ item2.quantity }}</span>
+                    </v-chip>
+                  </div>
+
+                  <!-- Progress bar for printing -->
+                  <v-progress-linear
+                    v-if="plate.status === 'PRINTING' && plate.printJob?.progress != null"
+                    :model-value="plate.printJob.progress"
+                    color="purple"
+                    rounded
+                    height="3"
+                    class="mt-2"
                   />
                 </div>
               </div>
