@@ -1,7 +1,7 @@
 <template>
   <div>
     <v-row no-gutters>
-      <v-navigation-drawer :permanent="true">
+      <v-navigation-drawer :permanent="true" style="overflow-y: auto">
         <v-list
           density="compact"
           nav
@@ -45,7 +45,7 @@ onMounted(async () => {
 })
 
 // Filter out admin-only settings entries when the user lacks ADMIN.
-const ADMIN_ONLY = new Set<string>([settingPage.apiKeys])
+const ADMIN_ONLY = new Set<string>([settingPage.apiKeys, settingPage.optimizer])
 const visibleItems = computed(() => {
   if (profileStore.isAdmin) return settingsPage
   const filtered: Record<string, (typeof settingsPage)[keyof typeof settingsPage]> = {}

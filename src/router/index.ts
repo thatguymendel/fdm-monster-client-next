@@ -26,6 +26,7 @@ import ProductionView from '@/components/Production/ProductionView.vue'
 import PartsView from '@/components/Parts/PartsView.vue'
 import GlobalQueueView from '@/components/GlobalQueue/GlobalQueueView.vue'
 import SlicerSettings from '@/components/Settings/SlicerSettings.vue'
+import OptimizerSettings from '@/components/Settings/OptimizerSettings.vue'
 import ApiKeysSettings from '@/components/Settings/ApiKeysSettings.vue'
 import DebugSocketSettings from "@/components/Settings/DebugSocketSettings.vue";
 import AboutSettings from "@/components/Settings/AboutSettings.vue";
@@ -175,6 +176,11 @@ const router = createRouter({
           path: "filament-profiles",
           meta: NeedsAuth,
           component: FilamentProfilesSettings,
+        },
+        {
+          path: "optimizer",
+          meta: NeedsAuth,
+          component: OptimizerSettings,
         },
       ]
     },

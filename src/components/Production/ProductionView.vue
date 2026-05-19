@@ -4,6 +4,45 @@
       <h1 class="text-h5">Production</h1>
     </div>
 
+    <!-- ─── Slicer status bar ────────────────────────────────────────────────── -->
+    <div class="d-flex align-center ga-3 mb-3 flex-wrap">
+      <v-chip
+        :color="slicerStatus?.configured ? 'success' : 'warning'"
+        size="small"
+        variant="tonal"
+        prepend-icon="mdi:mdi-printer-3d-nozzle"
+      >
+        Slicer: {{ slicerStatus?.configured ? (slicerStatus.config?.mode === 'remote' ? 'Connected (remote)' : 'Connected (local)') : 'Not configured' }}
+      </v-chip>
+      <v-chip
+        v-if="slicerStatus?.configured"
+        color="orange"
+        size="small"
+        variant="tonal"
+        prepend-icon="mdi:mdi-cog-sync"
+      >
+        Slicing: {{ slicerStatus?.platesSlicing ?? 0 }}
+      </v-chip>
+      <v-chip
+        v-if="slicerStatus?.configured"
+        color="blue"
+        size="small"
+        variant="tonal"
+        prepend-icon="mdi:mdi-clipboard-list"
+      >
+        Queued: {{ slicerStatus?.platesReadyToSlice ?? 0 }}
+      </v-chip>
+      <v-chip
+        v-if="!slicerStatus?.configured"
+        color="warning"
+        size="small"
+        variant="tonal"
+        prepend-icon="mdi:mdi-alert"
+      >
+        Configure slicer in Settings → OrcaSlicer
+      </v-chip>
+    </div>
+
     <!-- ─── Toolbar ───────────────────────────────────────────────────────────── -->
     <div class="d-flex align-center ga-2 mb-3 flex-wrap">
       <v-select
@@ -91,6 +130,16 @@
             @click.stop="confirmRejectOrder(item)"
           >
             Reject
+          </v-btn>
+          <v-btn
+            v-if="item.status === 'ACCEPTED' || item.status === 'PLANNING'"
+            size="small"
+            variant="tonal"
+            color="teal"
+            :loading="forcingPlan.has(item.id)"
+            @click.stop="forcePlanOrder(item)"
+          >
+            Force Plan
           </v-btn>
           <v-btn
             v-if="!['COMPLETED', 'REJECTED', 'FAILED', 'RECEIVED'].includes(item.status)"
@@ -300,12 +349,14 @@ import {
   BuildOrderService,
   PrintPartService,
   PlannedPlateService,
+  SlicerConfigService,
   type BuildOrder,
   type BuildOrderStatus,
   type PrintPart,
   type PlannedPlate,
   type PlannedPlateStatus,
   type CreateBuildOrderLineDto,
+  type SlicerConfigResponse,
 } from '@/backend/build-order-workflow.service'
 
 // ─── Snackbar ─────────────────────────────────────────────────────────────────
@@ -551,11 +602,47 @@ const partAutocompleteItems = computed(() =>
   parts.value.map(p => ({ externalPartId: p.externalPartId, label: `${p.name} — ${p.externalPartId}` }))
 )
 
+// ─── Slicer status ────────────────────────────────────────────────────────────
+
+const slicerStatus = ref<SlicerConfigResponse | null>(null)
+
+async function fetchSlicerStatus() {
+  try {
+    slicerStatus.value = await SlicerConfigService.getConfig()
+  } catch (_) {}
+}
+
+// ─── Force Plan ───────────────────────────────────────────────────────────────
+
+const forcingPlan = ref(new Set<number>())
+
+async function forcePlanOrder(order: BuildOrder) {
+  forcingPlan.value = new Set([...forcingPlan.value, order.id])
+  try {
+    const updated = await BuildOrderService.forcePlan(order.id)
+    const idx = orders.value.findIndex(o => o.id === order.id)
+    if (idx !== -1) orders.value[idx] = updated
+    // Refresh plates for this order if it was expanded
+    if (expanded.value.includes(order.id)) {
+      await fetchPlatesForOrder(order.id)
+    }
+    notify(`Order #${order.id} force-planned — plates created`)
+    await fetchSlicerStatus()
+  } catch (e: any) {
+    notify(e?.response?.data?.error ?? 'Failed to force plan order', 'error')
+  } finally {
+    const next = new Set(forcingPlan.value)
+    next.delete(order.id)
+    forcingPlan.value = next
+  }
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 onMounted(() => {
   fetchOrders()
   fetchParts()
+  fetchSlicerStatus()
 })
 </script>
 

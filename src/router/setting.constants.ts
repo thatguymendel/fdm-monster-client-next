@@ -15,6 +15,7 @@ export const settingPage = {
   apiKeys: "apiKeys",
   debugSocket: "debugSocket",
   about: "about",
+  optimizer: "optimizer",
 } as const;
 
 export const settingsPage = {
@@ -112,6 +113,12 @@ export const settingsPage = {
     title: "About",
     icon: "info",
     path: "/settings/about",
+    divider: false,
+  },
+  [settingPage.optimizer]: {
+    title: "Plate Optimizer",
+    icon: "mdi:mdi-tune",
+    path: "/settings/optimizer",
     divider: false,
   },
 } as const;

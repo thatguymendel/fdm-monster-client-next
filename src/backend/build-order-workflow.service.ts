@@ -282,6 +282,12 @@ export class BuildOrderService {
     const { data } = await client.post<BuildOrder>(`/api/v2/build-orders/${id}/reject`, { reason })
     return data
   }
+
+  static async forcePlan(id: number): Promise<BuildOrder> {
+    const client = await getHttpClient()
+    const { data } = await client.post<BuildOrder>(`/api/v2/build-orders/${id}/force-plan`)
+    return data
+  }
 }
 
 // ─── Planned Plate ────────────────────────────────────────────────────────────
@@ -365,6 +371,8 @@ export type SlicerConfig =
 export interface SlicerConfigResponse {
   configured: boolean
   config: SlicerConfig | null
+  platesSlicing: number
+  platesReadyToSlice: number
 }
 
 export interface SlicerTestResult {
