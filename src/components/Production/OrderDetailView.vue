@@ -15,69 +15,91 @@
 
       <!-- ─── Header ──────────────────────────────────────────────────────── -->
       <v-card class="mb-3">
-        <v-card-text class="pb-3">
-          <!-- Title row -->
-          <div class="d-flex align-center flex-wrap ga-2 mb-2">
-            <span class="text-h6">
+        <v-card-text>
+
+          <!-- Row 1: Title + status + actions -->
+          <div class="d-flex align-center flex-wrap ga-2 mb-4">
+            <span class="text-h6 font-weight-medium">
               {{ order.externalOrderId ? `Order ${order.externalOrderId}` : `Order #${order.id}` }}
             </span>
             <v-chip :color="orderStatusColor(order.status)" size="small" variant="tonal">
               {{ order.status }}
             </v-chip>
             <v-spacer />
-            <!-- Actions -->
-            <v-btn
-              v-if="order.status === 'RECEIVED'"
-              variant="tonal" color="primary" size="small"
-              :loading="actioning" @click="acceptOrder"
-            >Accept</v-btn>
-            <v-btn
-              v-if="order.status === 'RECEIVED'"
-              variant="tonal" color="error" size="small"
-              @click="rejectDialog = true"
-            >Reject</v-btn>
-            <v-btn
-              v-if="order.status === 'ACCEPTED' || order.status === 'PLANNING'"
-              variant="tonal" color="teal" size="small"
-              :loading="actioning" @click="forcePlan"
-            >Force Plan</v-btn>
-            <v-btn
-              v-if="!['COMPLETED', 'REJECTED', 'FAILED', 'RECEIVED'].includes(order.status)"
-              variant="tonal" color="error" size="small"
-              @click="rejectDialog = true"
-            >Cancel</v-btn>
+            <v-btn v-if="order.status === 'RECEIVED'" variant="tonal" color="primary" size="small" :loading="actioning" @click="acceptOrder">Accept</v-btn>
+            <v-btn v-if="order.status === 'RECEIVED'" variant="tonal" color="error" size="small" @click="rejectDialog = true">Reject</v-btn>
+            <v-btn v-if="order.status === 'ACCEPTED' || order.status === 'PLANNING'" variant="tonal" color="teal" size="small" :loading="actioning" @click="forcePlan">Force Plan</v-btn>
+            <v-btn v-if="!['COMPLETED', 'REJECTED', 'FAILED', 'RECEIVED'].includes(order.status)" variant="tonal" color="error" size="small" @click="rejectDialog = true">Cancel</v-btn>
           </div>
 
-          <!-- Compact metadata row -->
-          <div class="d-flex flex-wrap ga-x-4 ga-y-1 text-body-2 text-medium-emphasis mb-2">
-            <span v-if="order.source"><strong>Source:</strong> {{ order.source }}</span>
-            <span v-if="order.requiredBy"><strong>Due:</strong> {{ new Date(order.requiredBy).toLocaleDateString() }}</span>
-            <span><strong>Created:</strong> {{ formatDate(order.createdAt) }}</span>
-            <span v-if="order.acceptedAt"><strong>Accepted:</strong> {{ formatDate(order.acceptedAt) }}</span>
-            <span v-if="order.completedAt"><strong>Completed:</strong> {{ formatDate(order.completedAt) }}</span>
-            <span v-if="order.estimatedTotalPrintHours"><strong>Est. time:</strong> {{ order.estimatedTotalPrintHours.toFixed(1) }}h</span>
+          <!-- Row 2: 4-column key stats -->
+          <div class="header-grid mb-4">
+            <!-- Source -->
+            <div class="header-cell">
+              <div class="cell-label">SOURCE</div>
+              <div class="cell-value">{{ order.source || '—' }}</div>
+            </div>
+
+            <!-- Due date -->
+            <div class="header-cell">
+              <div class="cell-label">DUE DATE</div>
+              <div class="cell-value">
+                {{ order.requiredBy ? new Date(order.requiredBy).toLocaleDateString() : '—' }}
+              </div>
+            </div>
+
+            <!-- Priority -->
+            <div class="header-cell">
+              <div class="cell-label">PRIORITY</div>
+              <div class="d-flex align-center ga-2 mt-1">
+                <v-progress-linear
+                  :model-value="order.dynamicPriority"
+                  :color="order.dynamicPriority >= 70 ? 'error' : order.dynamicPriority >= 30 ? 'warning' : 'success'"
+                  rounded height="6" style="min-width: 60px; max-width: 100px"
+                />
+                <span class="text-body-2 font-weight-medium">{{ Math.round(order.dynamicPriority) }}</span>
+              </div>
+            </div>
+
+            <!-- Completion -->
+            <div class="header-cell">
+              <div class="cell-label">COMPLETION</div>
+              <div class="d-flex align-center ga-2 mt-1">
+                <v-progress-linear
+                  :model-value="totalOrdered > 0 ? (totalCompleted / totalOrdered) * 100 : 0"
+                  color="success" rounded height="6" style="min-width: 60px; max-width: 100px"
+                />
+                <span class="text-body-2 font-weight-medium" style="white-space: nowrap">
+                  {{ totalCompleted }} / {{ totalOrdered }}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <!-- Priority + completion inline -->
-          <div class="d-flex align-center ga-4 flex-wrap">
-            <div class="d-flex align-center ga-2" style="min-width: 180px">
-              <span class="text-caption text-medium-emphasis" style="white-space: nowrap">Priority {{ Math.round(order.dynamicPriority) }}</span>
-              <v-progress-linear
-                :model-value="order.dynamicPriority"
-                :color="order.dynamicPriority >= 70 ? 'error' : order.dynamicPriority >= 30 ? 'warning' : 'success'"
-                rounded height="6" style="min-width: 80px"
-              />
+          <!-- Row 3: Timestamps (smaller, muted) -->
+          <div class="d-flex flex-wrap ga-x-6 ga-y-1">
+            <div class="timestamp-cell">
+              <span class="cell-label">CREATED</span>
+              <span class="text-body-2 text-medium-emphasis ml-2">{{ formatDate(order.createdAt) }}</span>
             </div>
-            <div class="d-flex align-center ga-2" style="min-width: 200px">
-              <span class="text-caption text-medium-emphasis" style="white-space: nowrap">
-                {{ totalCompleted }} / {{ totalOrdered }} parts
-              </span>
-              <v-progress-linear
-                :model-value="totalOrdered > 0 ? (totalCompleted / totalOrdered) * 100 : 0"
-                color="success" rounded height="6" style="min-width: 80px"
-              />
+            <div v-if="order.acceptedAt" class="timestamp-cell">
+              <span class="cell-label">ACCEPTED</span>
+              <span class="text-body-2 text-medium-emphasis ml-2">{{ formatDate(order.acceptedAt) }}</span>
+            </div>
+            <div v-if="order.completedAt" class="timestamp-cell">
+              <span class="cell-label">COMPLETED</span>
+              <span class="text-body-2 text-medium-emphasis ml-2">{{ formatDate(order.completedAt) }}</span>
+            </div>
+            <div v-if="order.failedAt" class="timestamp-cell">
+              <span class="cell-label">FAILED</span>
+              <span class="text-body-2 text-medium-emphasis ml-2">{{ formatDate(order.failedAt) }}</span>
+            </div>
+            <div v-if="order.estimatedTotalPrintHours" class="timestamp-cell">
+              <span class="cell-label">EST. TIME</span>
+              <span class="text-body-2 text-medium-emphasis ml-2">{{ order.estimatedTotalPrintHours.toFixed(1) }}h</span>
             </div>
           </div>
+
         </v-card-text>
       </v-card>
 
@@ -300,3 +322,41 @@ onMounted(async () => {
   await fetchPlates()
 })
 </script>
+
+<style scoped>
+.header-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0 24px;
+}
+
+@media (max-width: 600px) {
+  .header-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px 24px;
+  }
+}
+
+.header-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.cell-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  margin-bottom: 2px;
+}
+
+.cell-value {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.timestamp-cell {
+  display: flex;
+  align-items: baseline;
+}
+</style>
