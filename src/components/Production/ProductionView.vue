@@ -108,15 +108,15 @@
           </template>
 
           <template #item.completion="{ item }">
-            <div class="d-flex align-center ga-1" style="min-width: 110px">
+            <div class="d-flex align-center ga-1" style="min-width: 130px">
               <v-progress-linear
                 :model-value="orderCompletionPct(item)"
                 color="success"
                 rounded
                 height="6"
-                style="min-width: 50px"
+                style="min-width: 50px; flex-shrink: 0"
               />
-              <span class="text-caption text-medium-emphasis">
+              <span class="text-caption text-medium-emphasis" style="white-space: nowrap">
                 {{ orderCompletedParts(item) }} / {{ orderTotalParts(item) }}
               </span>
             </div>
