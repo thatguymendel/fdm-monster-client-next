@@ -114,18 +114,6 @@
         </template>
       </template>
 
-      <!-- Constraint cell (parts only) -->
-      <template #item.plateConstraint="{ item }">
-        <v-chip
-          v-if="item.type === 'part'"
-          :color="constraintColor((item.data as PrintPart).plateConstraint)"
-          size="small"
-          variant="tonal"
-        >
-          {{ (item.data as PrintPart).plateConstraint }}
-        </v-chip>
-      </template>
-
       <!-- Dimensions cell (parts only) -->
       <template #item.dimensions="{ item }">
         <span v-if="item.type === 'part' && (item.data as PrintPart).partFile?.footprintWidthMm != null" class="text-body-2 text-medium-emphasis">
@@ -291,14 +279,6 @@
           </v-row>
           <v-row>
             <v-col cols="6">
-              <v-select
-                v-model="partForm.plateConstraint"
-                label="Plate Constraint"
-                :items="['REQUIRED', 'PREFERRED', 'FLEXIBLE']"
-                density="compact"
-              />
-            </v-col>
-            <v-col cols="3">
               <v-text-field
                 v-model.number="partForm.maxPerPlate"
                 label="Max / plate"
@@ -306,7 +286,7 @@
                 density="compact"
               />
             </v-col>
-            <v-col cols="3">
+            <v-col cols="6">
               <v-text-field
                 v-model.number="partForm.estimatedPrintMinutes"
                 label="Est. min"
@@ -364,7 +344,6 @@ import {
   PrintPartService,
   PrintProfileService,
   type PrintPart,
-  type PlateConstraint,
 } from '@/backend/build-order-workflow.service'
 import { FilamentService } from '@/backend/filament.service'
 
@@ -395,7 +374,6 @@ const headers = [
   { title: 'Name', key: 'name', sortable: false },
   { title: 'Print Profile', key: 'printProfile', sortable: false },
   { title: 'Filament', key: 'filamentProfile', sortable: false },
-  { title: 'Constraint', key: 'plateConstraint', sortable: false },
   { title: 'Dimensions', key: 'dimensions', sortable: false },
   { title: 'Est. Time', key: 'estimatedPrintMinutes', sortable: false },
   { title: '', key: 'actions', sortable: false, align: 'end' as const },
@@ -414,10 +392,6 @@ function fileExtColor(ext?: string): string {
   if (ext === '3mf') return 'blue'
   if (ext === 'stl') return 'green'
   return 'grey'
-}
-
-function constraintColor(c: PlateConstraint): string {
-  return c === 'REQUIRED' ? 'error' : c === 'PREFERRED' ? 'warning' : 'success'
 }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
@@ -556,7 +530,6 @@ const partForm = ref<{
   partFileId: string | null
   printProfileId: number | null
   filamentProfileId: number | null
-  plateConstraint: PlateConstraint
   maxPerPlate: number
   estimatedPrintMinutes: number | null
 }>({
@@ -565,7 +538,6 @@ const partForm = ref<{
   partFileId: null,
   printProfileId: null,
   filamentProfileId: null,
-  plateConstraint: 'FLEXIBLE',
   maxPerPlate: 4,
   estimatedPrintMinutes: null,
 })
@@ -580,7 +552,6 @@ function openPartDialog(part?: PrintPart) {
         partFileId: part.partFileId,
         printProfileId: part.printProfileId,
         filamentProfileId: part.filamentProfileId,
-        plateConstraint: part.plateConstraint,
         maxPerPlate: part.maxPerPlate,
         estimatedPrintMinutes: part.estimatedPrintMinutes,
       }
@@ -590,7 +561,6 @@ function openPartDialog(part?: PrintPart) {
         partFileId: null,
         printProfileId: null,
         filamentProfileId: null,
-        plateConstraint: 'FLEXIBLE',
         maxPerPlate: 4,
         estimatedPrintMinutes: null,
       }
@@ -629,7 +599,6 @@ async function submitPart() {
         partFileId: partForm.value.partFileId,
         printProfileId: partForm.value.printProfileId,
         filamentProfileId: partForm.value.filamentProfileId,
-        plateConstraint: partForm.value.plateConstraint,
         maxPerPlate: partForm.value.maxPerPlate,
         estimatedPrintMinutes: partForm.value.estimatedPrintMinutes,
       })
@@ -644,7 +613,6 @@ async function submitPart() {
         folderId: currentFolderId.value,
         printProfileId: partForm.value.printProfileId,
         filamentProfileId: partForm.value.filamentProfileId,
-        plateConstraint: partForm.value.plateConstraint,
         maxPerPlate: partForm.value.maxPerPlate,
         estimatedPrintMinutes: partForm.value.estimatedPrintMinutes,
       })
