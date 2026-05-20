@@ -285,9 +285,9 @@ export class BuildOrderService {
     return data
   }
 
-  static async forcePlan(id: number): Promise<BuildOrder> {
+  static async forcePlan(id: number): Promise<{ order: BuildOrder; platesCreated: number }> {
     const client = await getHttpClient()
-    const { data } = await client.post<BuildOrder>(`/api/v2/build-orders/${id}/force-plan`)
+    const { data } = await client.post<{ order: BuildOrder; platesCreated: number }>(`/api/v2/build-orders/${id}/force-plan`)
     return data
   }
 }
@@ -389,6 +389,12 @@ export class PlannedPlateService {
   static async reprint(id: number): Promise<PlannedPlate> {
     const client = await getHttpClient()
     const { data } = await client.post<PlannedPlate>(`/api/v2/planned-plates/${id}/reprint`)
+    return data
+  }
+
+  static async requeue(id: number): Promise<PlannedPlate> {
+    const client = await getHttpClient()
+    const { data } = await client.post<PlannedPlate>(`/api/v2/planned-plates/${id}/requeue`)
     return data
   }
 }

@@ -77,6 +77,17 @@
         Inspect / Reprint
       </v-btn>
 
+      <v-btn
+        v-if="plate.status === 'CANCELLED'"
+        size="small"
+        variant="tonal"
+        color="blue-grey"
+        :loading="requeuing"
+        @click.stop="emit('requeue', plate)"
+      >
+        Requeue
+      </v-btn>
+
       <v-progress-circular
         v-if="plate.status === 'SLICING'"
         indeterminate
@@ -141,6 +152,7 @@ const props = defineProps<{
   plate: PlannedPlate
   loading?: boolean
   cancelling?: boolean
+  requeuing?: boolean
   /** Map of printerId → printerName for offline fallback when printJob is unavailable */
   printerMap?: Map<number, string>
 }>()
@@ -162,6 +174,7 @@ const emit = defineEmits<{
   forceSlice: [plate: PlannedPlate]
   inspect: [plate: PlannedPlate]
   cancel: [plate: PlannedPlate]
+  requeue: [plate: PlannedPlate]
   detail: [plate: PlannedPlate]
 }>()
 

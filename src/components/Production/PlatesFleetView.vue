@@ -37,10 +37,12 @@
         :plate="plate"
         :loading="forcingSlice.has(plate.id)"
         :cancelling="cancellingPlate.has(plate.id)"
+        :requeuing="requeueingPlate.has(plate.id)"
         :printer-map="printerMap"
         @force-slice="forceSlice"
         @inspect="inspectPlate = $event; inspectDialog = true"
         @cancel="cancelPlate"
+        @requeue="requeuePlate"
         @detail="detailPlate = $event; detailDialog = true"
       />
     </div>
@@ -103,6 +105,7 @@ const allPlates = ref<PlannedPlate[]>([])
 const printerMap = ref(new Map<number, string>())
 const forcingSlice = ref(new Set<number>())
 const cancellingPlate = ref(new Set<number>())
+const requeueingPlate = ref(new Set<number>())
 const inspectDialog = ref(false)
 const inspectPlate = ref<PlannedPlate | null>(null)
 const detailDialog = ref(false)
@@ -132,6 +135,18 @@ async function cancelPlate(plate: PlannedPlate) {
     // parent snackbar not available here
   } finally {
     const next = new Set(cancellingPlate.value); next.delete(plate.id); cancellingPlate.value = next
+  }
+}
+
+async function requeuePlate(plate: PlannedPlate) {
+  requeueingPlate.value = new Set([...requeueingPlate.value, plate.id])
+  try {
+    await PlannedPlateService.requeue(plate.id)
+    await fetch()
+  } catch {
+    // parent snackbar not available here
+  } finally {
+    const next = new Set(requeueingPlate.value); next.delete(plate.id); requeueingPlate.value = next
   }
 }
 

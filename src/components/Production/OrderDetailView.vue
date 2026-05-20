@@ -161,10 +161,12 @@
               :plate="plate"
               :loading="forcingSlice.has(plate.id)"
               :cancelling="cancellingPlate.has(plate.id)"
+              :requeuing="requeueingPlate.has(plate.id)"
               :printer-map="printerMap"
               @force-slice="forceSlice"
               @inspect="inspectPlate = $event; inspectDialog = true"
               @cancel="cancelPlate"
+              @requeue="requeuePlate"
               @detail="detailPlate = $event; detailDialog = true"
             />
           </div>
@@ -238,6 +240,7 @@ const plates = ref<PlannedPlate[]>([])
 const printerMap = ref(new Map<number, string>())
 const forcingSlice = ref(new Set<number>())
 const cancellingPlate = ref(new Set<number>())
+const requeueingPlate = ref(new Set<number>())
 const inspectDialog = ref(false)
 const inspectPlate = ref<PlannedPlate | null>(null)
 const detailDialog = ref(false)
@@ -305,8 +308,13 @@ async function forcePlan() {
   if (!order.value) return
   actioning.value = true
   try {
-    order.value = await BuildOrderService.forcePlan(order.value.id)
-    notify('Force-planned — plates created')
+    const result = await BuildOrderService.forcePlan(order.value.id)
+    order.value = result.order
+    if (result.platesCreated > 0) {
+      notify(`Force-planned — ${result.platesCreated} plate(s) created`)
+    } else {
+      notify('No new plates created — all remaining parts are already on active plates. Cancel any QUEUED or PRINTING plates first if you want to re-plan.', 'warning')
+    }
     await fetchPlates()
   } catch (e: any) {
     notify(e?.response?.data?.error ?? 'Failed to force plan', 'error')
@@ -335,6 +343,19 @@ async function cancelPlate(plate: PlannedPlate) {
     notify(e?.response?.data?.error ?? 'Failed to cancel plate', 'error')
   } finally {
     const next = new Set(cancellingPlate.value); next.delete(plate.id); cancellingPlate.value = next
+  }
+}
+
+async function requeuePlate(plate: PlannedPlate) {
+  requeueingPlate.value = new Set([...requeueingPlate.value, plate.id])
+  try {
+    await PlannedPlateService.requeue(plate.id)
+    notify(`Plate #${plate.id} requeued for slicing`)
+    await fetchPlates()
+  } catch (e: any) {
+    notify(e?.response?.data?.error ?? 'Failed to requeue plate', 'error')
+  } finally {
+    const next = new Set(requeueingPlate.value); next.delete(plate.id); requeueingPlate.value = next
   }
 }
 

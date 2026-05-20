@@ -490,10 +490,14 @@ const forcingPlan = ref(new Set<number>())
 async function forcePlanOrder(order: BuildOrder) {
   forcingPlan.value = new Set([...forcingPlan.value, order.id])
   try {
-    const updated = await BuildOrderService.forcePlan(order.id)
+    const { order: updated, platesCreated } = await BuildOrderService.forcePlan(order.id)
     const idx = orders.value.findIndex(o => o.id === order.id)
     if (idx !== -1) orders.value[idx] = updated
-    notify(`Order #${order.id} force-planned — plates created`)
+    if (platesCreated > 0) {
+      notify(`Order #${order.id} force-planned — ${platesCreated} plate(s) created`)
+    } else {
+      notify(`Order #${order.id}: no new plates — all parts are on active plates`, 'warning')
+    }
     await fetchSlicerStatus()
   } catch (e: any) {
     notify(e?.response?.data?.error ?? 'Failed to force plan order', 'error')
