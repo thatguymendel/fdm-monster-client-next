@@ -36,25 +36,45 @@
         :key="plate.id"
         :plate="plate"
         :loading="forcingSlice.has(plate.id)"
+        :cancelling="cancellingPlate.has(plate.id)"
         @force-slice="forceSlice"
+        @inspect="inspectPlate = $event; inspectDialog = true"
+        @cancel="cancelPlate"
+        @detail="detailPlate = $event; detailDialog = true"
       />
     </div>
   </div>
+
+  <PlateInspectDialog
+    v-if="inspectPlate"
+    v-model="inspectDialog"
+    :plate="inspectPlate"
+    @done="fetch"
+  />
+
+  <PlateDetailDialog
+    v-if="detailPlate"
+    v-model="detailDialog"
+    :plate="detailPlate"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { PlannedPlateService, type PlannedPlate, type PlannedPlateStatus } from '@/backend/build-order-workflow.service'
+
 import PlateRow from '@/components/Production/PlateRow.vue'
+import PlateInspectDialog from '@/components/Production/PlateInspectDialog.vue'
+import PlateDetailDialog from '@/components/Production/PlateDetailDialog.vue'
 
 // ─── Status filter ────────────────────────────────────────────────────────────
 
 const allStatuses: PlannedPlateStatus[] = [
   'PLANNING', 'READY_TO_SLICE', 'SLICING', 'SLICE_FAILED',
-  'QUEUED', 'PRINTING', 'DONE', 'CANCELLED',
+  'QUEUED', 'PRINTING', 'AWAITING_CONFIRMATION', 'PRINT_FAILED', 'DONE', 'CANCELLED',
 ]
 
-const defaultActive = new Set<PlannedPlateStatus>(['SLICING', 'SLICE_FAILED', 'QUEUED', 'PRINTING'])
+const defaultActive = new Set<PlannedPlateStatus>(['SLICING', 'SLICE_FAILED', 'QUEUED', 'PRINTING', 'AWAITING_CONFIRMATION', 'PRINT_FAILED'])
 const activeStatuses = ref(new Set<PlannedPlateStatus>(defaultActive))
 
 function toggleStatus(s: PlannedPlateStatus) {
@@ -68,6 +88,7 @@ function plateStatusColor(status: PlannedPlateStatus): string {
   const map: Record<PlannedPlateStatus, string> = {
     PLANNING: 'blue-grey', READY_TO_SLICE: 'blue', SLICING: 'orange',
     SLICE_FAILED: 'error', QUEUED: 'teal', PRINTING: 'purple',
+    AWAITING_CONFIRMATION: 'cyan', PRINT_FAILED: 'deep-orange',
     DONE: 'success', CANCELLED: 'grey',
   }
   return map[status] ?? 'grey'
@@ -78,6 +99,11 @@ function plateStatusColor(status: PlannedPlateStatus): string {
 const loading = ref(false)
 const allPlates = ref<PlannedPlate[]>([])
 const forcingSlice = ref(new Set<number>())
+const cancellingPlate = ref(new Set<number>())
+const inspectDialog = ref(false)
+const inspectPlate = ref<PlannedPlate | null>(null)
+const detailDialog = ref(false)
+const detailPlate = ref<PlannedPlate | null>(null)
 
 const filteredPlates = computed(() =>
   allPlates.value.filter(p => activeStatuses.value.has(p.status))
@@ -91,6 +117,18 @@ async function fetch() {
     // silently fail — parent can surface errors
   } finally {
     loading.value = false
+  }
+}
+
+async function cancelPlate(plate: PlannedPlate) {
+  cancellingPlate.value = new Set([...cancellingPlate.value, plate.id])
+  try {
+    await PlannedPlateService.cancel(plate.id)
+    await fetch()
+  } catch {
+    // parent snackbar not available here
+  } finally {
+    const next = new Set(cancellingPlate.value); next.delete(plate.id); cancellingPlate.value = next
   }
 }
 

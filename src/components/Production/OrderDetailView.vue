@@ -77,7 +77,7 @@
           </div>
 
           <!-- Row 3: Timestamps (smaller, muted) -->
-          <div class="d-flex flex-wrap ga-x-6 ga-y-1">
+          <div class="d-flex flex-wrap" style="column-gap: 28px; row-gap: 6px;">
             <div class="timestamp-cell">
               <span class="cell-label">CREATED</span>
               <span class="text-body-2 text-medium-emphasis ml-2">{{ formatDate(order.createdAt) }}</span>
@@ -160,11 +160,28 @@
               :key="plate.id"
               :plate="plate"
               :loading="forcingSlice.has(plate.id)"
+              :cancelling="cancellingPlate.has(plate.id)"
               @force-slice="forceSlice"
+              @inspect="inspectPlate = $event; inspectDialog = true"
+              @cancel="cancelPlate"
+              @detail="detailPlate = $event; detailDialog = true"
             />
           </div>
         </v-card-text>
       </v-card>
+
+      <PlateInspectDialog
+        v-if="inspectPlate"
+        v-model="inspectDialog"
+        :plate="inspectPlate"
+        @done="fetchPlates"
+      />
+
+      <PlateDetailDialog
+        v-if="detailPlate"
+        v-model="detailDialog"
+        :plate="detailPlate"
+      />
 
     </template>
 
@@ -202,7 +219,10 @@ import {
   type BuildOrderLine,
   type PlannedPlate,
 } from '@/backend/build-order-workflow.service'
+
 import PlateRow from '@/components/Production/PlateRow.vue'
+import PlateInspectDialog from '@/components/Production/PlateInspectDialog.vue'
+import PlateDetailDialog from '@/components/Production/PlateDetailDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -214,6 +234,11 @@ const actioning = ref(false)
 const order = ref<BuildOrder | null>(null)
 const plates = ref<PlannedPlate[]>([])
 const forcingSlice = ref(new Set<number>())
+const cancellingPlate = ref(new Set<number>())
+const inspectDialog = ref(false)
+const inspectPlate = ref<PlannedPlate | null>(null)
+const detailDialog = ref(false)
+const detailPlate = ref<PlannedPlate | null>(null)
 const snackbar = ref(false)
 const snackbarMsg = ref('')
 const snackbarColor = ref('success')
@@ -297,6 +322,19 @@ async function submitReject() {
   } finally { actioning.value = false }
 }
 
+async function cancelPlate(plate: PlannedPlate) {
+  cancellingPlate.value = new Set([...cancellingPlate.value, plate.id])
+  try {
+    await PlannedPlateService.cancel(plate.id)
+    notify(`Plate #${plate.id} cancelled`)
+    await fetchPlates()
+  } catch (e: any) {
+    notify(e?.response?.data?.error ?? 'Failed to cancel plate', 'error')
+  } finally {
+    const next = new Set(cancellingPlate.value); next.delete(plate.id); cancellingPlate.value = next
+  }
+}
+
 async function forceSlice(plate: PlannedPlate) {
   forcingSlice.value = new Set([...forcingSlice.value, plate.id])
   try {
@@ -358,5 +396,6 @@ onMounted(async () => {
 .timestamp-cell {
   display: flex;
   align-items: baseline;
+  white-space: nowrap;
 }
 </style>

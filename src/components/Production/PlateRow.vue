@@ -1,10 +1,12 @@
 <template>
-  <div class="plate-row pa-2 rounded mb-1">
+  <div class="plate-row pa-2 rounded mb-1 cursor-pointer" @click.self="emit('detail', plate)">
     <!-- Top row: ID, status, profiles, printer, actions -->
     <div class="d-flex align-center ga-2 flex-wrap">
       <span class="text-caption text-medium-emphasis" style="min-width: 60px">
         Plate #{{ plate.id }}
       </span>
+
+      <v-icon v-if="plate.reprintOfPlateId != null" size="14" color="grey" title="Reprint plate">mdi:mdi-refresh</v-icon>
 
       <v-chip :color="plateStatusColor(plate.status)" size="small" variant="tonal">
         {{ plate.status.replace(/_/g, ' ') }}
@@ -55,12 +57,54 @@
         {{ plate.status === 'SLICE_FAILED' ? 'Retry Slice' : 'Force Slice Now' }}
       </v-btn>
 
+      <v-btn
+        v-if="plate.status === 'AWAITING_CONFIRMATION'"
+        size="small"
+        variant="tonal"
+        color="teal"
+        @click="emit('inspect', plate)"
+      >
+        Confirm Print
+      </v-btn>
+
+      <v-btn
+        v-if="plate.status === 'PRINT_FAILED'"
+        size="small"
+        variant="tonal"
+        color="deep-orange"
+        @click="emit('inspect', plate)"
+      >
+        Inspect / Reprint
+      </v-btn>
+
       <v-progress-circular
         v-if="plate.status === 'SLICING'"
         indeterminate
         size="18"
         color="orange"
       />
+
+      <v-btn
+        v-if="!['PRINTING', 'DONE', 'CANCELLED', 'AWAITING_CONFIRMATION', 'PRINT_FAILED'].includes(plate.status)"
+        size="small"
+        variant="text"
+        color="error"
+        icon
+        :loading="cancelling"
+        @click.stop="emit('cancel', plate)"
+      >
+        <v-icon size="16">mdi:mdi-close</v-icon>
+      </v-btn>
+
+      <v-btn
+        size="small"
+        variant="text"
+        color="grey"
+        icon
+        @click.stop="emit('detail', plate)"
+      >
+        <v-icon size="16">mdi:mdi-information-outline</v-icon>
+      </v-btn>
     </div>
 
     <!-- Part chips -->
@@ -95,10 +139,14 @@ import type { PlannedPlate, PlannedPlateStatus } from '@/backend/build-order-wor
 defineProps<{
   plate: PlannedPlate
   loading?: boolean
+  cancelling?: boolean
 }>()
 
 const emit = defineEmits<{
   forceSlice: [plate: PlannedPlate]
+  inspect: [plate: PlannedPlate]
+  cancel: [plate: PlannedPlate]
+  detail: [plate: PlannedPlate]
 }>()
 
 function plateStatusColor(status: PlannedPlateStatus): string {
@@ -109,6 +157,8 @@ function plateStatusColor(status: PlannedPlateStatus): string {
     SLICE_FAILED: 'error',
     QUEUED: 'teal',
     PRINTING: 'purple',
+    AWAITING_CONFIRMATION: 'cyan',
+    PRINT_FAILED: 'deep-orange',
     DONE: 'success',
     CANCELLED: 'grey',
   }
@@ -119,5 +169,8 @@ function plateStatusColor(status: PlannedPlateStatus): string {
 <style scoped>
 .plate-row {
   background: rgba(var(--v-theme-surface), 0.8);
+}
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>
