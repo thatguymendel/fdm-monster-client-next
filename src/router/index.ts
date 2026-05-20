@@ -32,6 +32,7 @@ import DebugSocketSettings from "@/components/Settings/DebugSocketSettings.vue";
 import AboutSettings from "@/components/Settings/AboutSettings.vue";
 import OrcaSlicerSettings from "@/components/Settings/OrcaSlicerSettings.vue";
 import PrusaSlicerSettings from "@/components/Settings/PrusaSlicerSettings.vue";
+import OrderDetailView from "@/components/Production/OrderDetailView.vue";
 import PrintProfilesSettings from "@/components/Settings/PrintProfilesSettings.vue";
 import FilamentProfilesSettings from "@/components/Settings/FilamentProfilesSettings.vue";
 
@@ -219,6 +220,12 @@ const router = createRouter({
       name: RouteNames.Production,
       meta: NeedsAuth,
       component: ProductionView
+    },
+    {
+      path: '/production/orders/:id',
+      name: 'OrderDetail',
+      meta: NeedsAuth,
+      component: OrderDetailView
     },
     {
       path: '/global-queue',
