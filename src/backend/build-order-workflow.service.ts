@@ -333,6 +333,8 @@ export interface PlannedPlate {
   filamentProfile: FilamentProfile | null
   printJobId: number | null
   printJob: PlannedPrintJob | null
+  /** ID of the printer currently (or last) printing this plate. */
+  printerId: number | null
   reprintOfPlateId: number | null
   createdAt: string
   slicingStartedAt: string | null

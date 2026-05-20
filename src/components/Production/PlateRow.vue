@@ -18,16 +18,16 @@
         {{ plate.filamentProfile?.name ?? `Filament #${plate.filamentProfileId}` }}
       </span>
 
-      <!-- Printer chip -->
+      <!-- Printer chip: prefer live job name, fall back to printerId lookup -->
       <v-chip
-        v-if="plate.printJob?.printerName"
+        v-if="resolvedPrinterName"
         :color="plate.status === 'PRINTING' ? 'purple' : 'teal'"
         size="small"
         variant="tonal"
         prepend-icon="mdi:mdi-printer"
       >
-        {{ plate.printJob.printerName }}
-        <span v-if="plate.status === 'PRINTING' && plate.printJob.progress != null" class="ml-1">
+        {{ resolvedPrinterName }}
+        <span v-if="plate.status === 'PRINTING' && plate.printJob?.progress != null" class="ml-1">
           · {{ plate.printJob.progress }}%
         </span>
       </v-chip>
@@ -134,13 +134,29 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { PlannedPlate, PlannedPlateStatus } from '@/backend/build-order-workflow.service'
 
-defineProps<{
+const props = defineProps<{
   plate: PlannedPlate
   loading?: boolean
   cancelling?: boolean
+  /** Map of printerId → printerName for offline fallback when printJob is unavailable */
+  printerMap?: Map<number, string>
 }>()
+
+/**
+ * Best available printer name:
+ * 1. Live from the printJob relation (most up-to-date)
+ * 2. From printerMap via plate.printerId (survives job cleanup / restarts)
+ */
+const resolvedPrinterName = computed<string | null>(() => {
+  if (props.plate.printJob?.printerName) return props.plate.printJob.printerName
+  if (props.plate.printerId && props.printerMap) {
+    return props.printerMap.get(props.plate.printerId) ?? null
+  }
+  return null
+})
 
 const emit = defineEmits<{
   forceSlice: [plate: PlannedPlate]

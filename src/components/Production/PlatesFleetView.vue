@@ -37,6 +37,7 @@
         :plate="plate"
         :loading="forcingSlice.has(plate.id)"
         :cancelling="cancellingPlate.has(plate.id)"
+        :printer-map="printerMap"
         @force-slice="forceSlice"
         @inspect="inspectPlate = $event; inspectDialog = true"
         @cancel="cancelPlate"
@@ -62,6 +63,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { PlannedPlateService, type PlannedPlate, type PlannedPlateStatus } from '@/backend/build-order-workflow.service'
+import { PrintersService } from '@/backend/printers.service'
 
 import PlateRow from '@/components/Production/PlateRow.vue'
 import PlateInspectDialog from '@/components/Production/PlateInspectDialog.vue'
@@ -98,6 +100,7 @@ function plateStatusColor(status: PlannedPlateStatus): string {
 
 const loading = ref(false)
 const allPlates = ref<PlannedPlate[]>([])
+const printerMap = ref(new Map<number, string>())
 const forcingSlice = ref(new Set<number>())
 const cancellingPlate = ref(new Set<number>())
 const inspectDialog = ref(false)
@@ -150,9 +153,14 @@ async function forceSlice(plate: PlannedPlate) {
 
 let timer: ReturnType<typeof setInterval> | null = null
 
-onMounted(() => {
+onMounted(async () => {
   fetch()
   timer = setInterval(fetch, 10_000)
+  // Load printer names once for the fallback printer chip
+  try {
+    const printers = await PrintersService.getPrinters()
+    printerMap.value = new Map(printers.map(p => [p.id, p.name]))
+  } catch { /* non-critical */ }
 })
 
 onUnmounted(() => {
