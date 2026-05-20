@@ -7,6 +7,7 @@ export interface OptimizerSettings {
   fillThreshold: number
   defaultMaxPerPlate: number
   plateCompletionMode: 'auto' | 'confirmation'
+  packingEfficiency: number
 }
 
 export class OptimizerSettingsService {

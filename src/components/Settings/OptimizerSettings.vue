@@ -104,6 +104,24 @@
             @update:model-value="dirty = true"
           />
         </v-col>
+        <v-col cols="12">
+          <div class="text-body-2 mb-1">Packing efficiency: {{ Math.round(form.packingEfficiency * 100) }}%</div>
+          <v-slider
+            v-model="form.packingEfficiency"
+            min="0.3"
+            max="0.95"
+            step="0.05"
+            thumb-label
+            color="primary"
+            :thumb-size="20"
+            @update:model-value="dirty = true"
+          >
+            <template #thumb-label="{ modelValue }">{{ Math.round(modelValue * 100) }}%</template>
+          </v-slider>
+          <div class="text-caption text-medium-emphasis">
+            Fraction of the bed area the optimizer treats as usable. Lower = more conservative (fewer parts per plate, less chance of overflow). Default 70%.
+          </div>
+        </v-col>
       </v-row>
 
       <div v-if="!loaded" class="d-flex justify-center pa-8">
@@ -133,6 +151,7 @@ const form = ref<OptimizerSettings>({
   fillThreshold: 0.3,
   defaultMaxPerPlate: 6,
   plateCompletionMode: 'auto',
+  packingEfficiency: 0.70,
 })
 
 onMounted(async () => {
