@@ -90,6 +90,20 @@
             @update:model-value="dirty = true"
           />
         </v-col>
+        <v-col cols="12" sm="6">
+          <v-select
+            v-model="form.plateCompletionMode"
+            label="Plate completion mode"
+            :items="[
+              { title: 'Automatic — mark done when print job completes', value: 'auto' },
+              { title: 'Require confirmation — operator confirms each plate', value: 'confirmation' },
+            ]"
+            density="compact"
+            hint="Controls whether completed plates are automatically marked done or wait for operator sign-off"
+            persistent-hint
+            @update:model-value="dirty = true"
+          />
+        </v-col>
       </v-row>
 
       <div v-if="!loaded" class="d-flex justify-center pa-8">
@@ -118,6 +132,7 @@ const form = ref<OptimizerSettings>({
   holdWindowLowMs: 900000,
   fillThreshold: 0.3,
   defaultMaxPerPlate: 6,
+  plateCompletionMode: 'auto',
 })
 
 onMounted(async () => {

@@ -209,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   BuildOrderService,
@@ -355,9 +355,26 @@ const lineHeaders = [
   { title: 'Status', key: 'status', sortable: false, width: 110 },
 ]
 
+const ACTIVE_STATUSES = new Set(['SLICING', 'QUEUED', 'PRINTING'])
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function startPolling() {
+  if (pollTimer) return
+  pollTimer = setInterval(async () => {
+    if (plates.value.some(p => ACTIVE_STATUSES.has(p.status))) {
+      await fetchPlates()
+    }
+  }, 5_000)
+}
+
 onMounted(async () => {
   await fetchOrder()
   await fetchPlates()
+  startPolling()
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
 })
 </script>
 

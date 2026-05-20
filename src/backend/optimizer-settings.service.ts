@@ -6,6 +6,7 @@ export interface OptimizerSettings {
   holdWindowLowMs: number
   fillThreshold: number
   defaultMaxPerPlate: number
+  plateCompletionMode: 'auto' | 'confirmation'
 }
 
 export class OptimizerSettingsService {

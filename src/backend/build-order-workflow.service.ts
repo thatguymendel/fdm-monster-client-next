@@ -301,6 +301,8 @@ export type PlannedPlateStatus =
   | 'SLICE_FAILED'
   | 'QUEUED'
   | 'PRINTING'
+  | 'AWAITING_CONFIRMATION'
+  | 'PRINT_FAILED'
   | 'DONE'
   | 'CANCELLED'
 
@@ -331,6 +333,7 @@ export interface PlannedPlate {
   filamentProfile: FilamentProfile | null
   printJobId: number | null
   printJob: PlannedPrintJob | null
+  reprintOfPlateId: number | null
   createdAt: string
   slicingStartedAt: string | null
   slicingCompletedAt: string | null
@@ -369,6 +372,21 @@ export class PlannedPlateService {
   static async cancel(id: number): Promise<PlannedPlate> {
     const client = await getHttpClient()
     const { data } = await client.post<PlannedPlate>(`/api/v2/planned-plates/${id}/cancel`)
+    return data
+  }
+
+  static async complete(
+    id: number,
+    items: { plateItemId: number; passedQuantity: number; failedQuantity: number }[]
+  ): Promise<PlannedPlate> {
+    const client = await getHttpClient()
+    const { data } = await client.post<PlannedPlate>(`/api/v2/planned-plates/${id}/complete`, { items })
+    return data
+  }
+
+  static async reprint(id: number): Promise<PlannedPlate> {
+    const client = await getHttpClient()
+    const { data } = await client.post<PlannedPlate>(`/api/v2/planned-plates/${id}/reprint`)
     return data
   }
 }

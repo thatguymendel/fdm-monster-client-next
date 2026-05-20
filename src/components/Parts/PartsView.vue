@@ -126,6 +126,16 @@
         </v-chip>
       </template>
 
+      <!-- Dimensions cell (parts only) -->
+      <template #item.dimensions="{ item }">
+        <span v-if="item.type === 'part' && (item.data as PrintPart).partFile?.footprintWidthMm != null" class="text-body-2 text-medium-emphasis">
+          {{ (item.data as PrintPart).partFile!.footprintWidthMm!.toFixed(1) }}
+          × {{ (item.data as PrintPart).partFile!.footprintDepthMm!.toFixed(1) }}
+          × {{ (item.data as PrintPart).partFile!.heightMm!.toFixed(1) }} mm
+        </span>
+        <span v-else-if="item.type === 'part'" class="text-medium-emphasis">—</span>
+      </template>
+
       <!-- Est. time (parts only) -->
       <template #item.estimatedPrintMinutes="{ item }">
         <span v-if="item.type === 'part'">
@@ -221,7 +231,7 @@
           />
 
           <!-- File upload -->
-          <div class="d-flex align-center ga-2 mb-3">
+          <div class="d-flex align-center ga-2 mb-1">
             <v-btn
               variant="tonal"
               size="small"
@@ -245,6 +255,15 @@
               @change="onFileSelected"
             />
           </div>
+          <div
+            v-if="editingPart?.partFile?.footprintWidthMm != null && !uploadedFileName"
+            class="text-caption text-medium-emphasis mb-3"
+          >
+            Parsed: {{ editingPart.partFile.footprintWidthMm!.toFixed(1) }}
+            × {{ editingPart.partFile.footprintDepthMm!.toFixed(1) }}
+            × {{ editingPart.partFile.heightMm!.toFixed(1) }} mm
+          </div>
+          <div v-else class="mb-3" />
 
           <v-row>
             <v-col cols="6">
@@ -377,6 +396,7 @@ const headers = [
   { title: 'Print Profile', key: 'printProfile', sortable: false },
   { title: 'Filament', key: 'filamentProfile', sortable: false },
   { title: 'Constraint', key: 'plateConstraint', sortable: false },
+  { title: 'Dimensions', key: 'dimensions', sortable: false },
   { title: 'Est. Time', key: 'estimatedPrintMinutes', sortable: false },
   { title: '', key: 'actions', sortable: false, align: 'end' as const },
 ]
